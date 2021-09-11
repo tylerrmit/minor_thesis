@@ -1,2 +1,6 @@
 .iypnb_checkpoints
 */.ipynb_checkpoints/*
+data_sources/australia-latest.osm.pbf
+*/__pycache__
+*/__pycache__/*
+token.txt
