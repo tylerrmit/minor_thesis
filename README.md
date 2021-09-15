@@ -63,10 +63,17 @@ and then expand those co-ordinate pairs into a list of co-ordinates at 10m inter
 sample at 10m intervals.  At $7 USD per 1000 images and 4 images per point, this
 would be $303 USD for the one town.
 
+### GSV_Batch_Load_Test.ipynb
+Test the use of gsv_loader.py to download GSV images (or ignore and re-use cached
+images if they have been downloaded before) based on a CSV batch file
+
 
 ## Python Classes
 
 osm_filter.py = Called by OSM_Filter.ipynb to load a "locality" geojson file and then
 filter it down to only one feature that matches the "vic_loca_2" property, then
 save it as a smaller geosjon file representing the "shape" of the selected locality
+
+gsv_loader.py = Download/cache GSV images requested in a batch CSV file
+node_id,offset_id,lat,lon,bearing
 

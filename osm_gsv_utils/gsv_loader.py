@@ -32,6 +32,18 @@ class gsv_loader(object):
             key_file.close
 
 
+    def save_batch(self, batch_filename, points):
+        with open(batch_filename, 'w') as csv_file:
+            csv_file.write('node_id,offset_id,lat,lon,bearing\n')
+
+            for point in points:
+                line = str(point[5]) + ',' + str(point[3]) + ',' + str(point[0]) + ',' + str(point[1]) + ',' + str(point[2]) + '\n'
+
+                csv_file.write(line)
+
+            csv_file.close()
+
+
     def load_batch(self, batch_filename, verbose=False):
         '''
         Parameters

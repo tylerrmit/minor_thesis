@@ -1,0 +1,5 @@
+# 145.094,-38.176 x 145.11,-38.162
+
+osmium extract --bbox=145.094,-38.176,145.110,-38.162 australia-latest.osm.pbf -o Locality_Mount_Eliza_Sample.osm
+osmium extract --bbox=145.092,-38.178,145.112,-38.160 australia-latest.osm.pbf -o Locality_Mount_Eliza_Sample_margin.osm
+
