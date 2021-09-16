@@ -6,3 +6,7 @@ data_sources/australia-latest.osm.pbf
 token.txt
 apikey.txt
 data_sources/gsv
+data_sources/test1
+data_sources/test1_out
+Tensorflow
+jupyter/Tensorflow_disabled
