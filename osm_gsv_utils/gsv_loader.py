@@ -9,10 +9,12 @@ import numpy as np
 import pandas as pd
 import google_streetview.api
 
+from tqdm.notebook import tqdm
+
 
 class gsv_loader(object):
     '''
-    A class used to load and cacche Google Street View images in batch
+    A class used to load and cache Google Street View images in batch
     '''
 
     def __init__(self, apikey_filename, download_directory):
@@ -37,7 +39,16 @@ class gsv_loader(object):
             csv_file.write('node_id,offset_id,lat,lon,bearing\n')
 
             for point in points:
-                line = str(point[5]) + ',' + str(point[3]) + ',' + str(point[0]) + ',' + str(point[1]) + ',' + str(point[2]) + '\n'
+                node_id   = point[5]
+                offset_id = point[3]
+                lat       = point[0]
+                lon       = point[1]
+                bearing   = point[2]
+
+                if bearing < 0:
+                    bearing = bearing + 360
+
+                line = str(node_id) + ',' + str(offset_id) + ',' + str(lat) + ',' + str(lon) + ',' + str(bearing) + '\n'
 
                 csv_file.write(line)
 
@@ -67,6 +78,22 @@ class gsv_loader(object):
             )
 
 
+    def load_batch_progress(self, batch_filename, verbose=False):
+        df = pd.read_csv(batch_filename)
+
+        tqdm.pandas()
+
+        df.progress_apply(lambda row: self.load_coordinates(
+            str(int(row['node_id'])),
+            str(int(row['offset_id'])),
+            row['lat'],
+            row['lon'],
+            row['bearing'],
+            verbose=verbose),
+            axis=1
+        )
+
+
     def load_coordinates(
             self,
             node_id,
@@ -74,9 +101,9 @@ class gsv_loader(object):
             lat,
             lon,
             bearing,
-            heading_offsets=[0,90,180,270],
-            fov=90,
-            pitch=-20,
+            heading_offsets = [0,90,180,270],
+            fov             = 90,
+            pitch           = -20,
             verbose=False
     ):
         location = str(lat) + ', ' + str(lon)
