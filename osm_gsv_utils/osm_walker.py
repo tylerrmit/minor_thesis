@@ -168,7 +168,7 @@ class osm_walker(object):
         if bearing < 0:
             bearing = bearing + 360
         
-        return bearing
+        return int(round(bearing))
         
     # Get a series of points from one point to the next, at regular intervals up to a desired offset
     def expand_offsets(self, lat1, lon1, lat2, lon2, max_offset, interval, way_id, node_id):
@@ -194,7 +194,7 @@ class osm_walker(object):
                 sample_point = [
                     g['lat2'],
                     g['lon2'],
-                    bearing,
+                    int(round(bearing)),
                     step_i * interval * polarity,
                     way_id,
                     node_id

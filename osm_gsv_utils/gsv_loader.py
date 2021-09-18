@@ -11,6 +11,9 @@ import google_streetview.api
 
 from tqdm.notebook import tqdm
 
+from datetime import datetime
+import shutil
+
 
 class gsv_loader(object):
     '''
@@ -32,30 +35,42 @@ class gsv_loader(object):
         with open(apikey_filename) as key_file:
             self.api_key = key_file.readline()
             key_file.close
+            
+        self.cache_hits = 0
+        self.cache_miss = 0
 
 
-    def save_batch(self, batch_filename, points):
+    def write_batch_file(self, batch_filename, points, limit=0):
+        # Backup any existing version of the file
+        if os.path.exists(batch_filename):
+            backup_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = batch_filename.replace('.csv', backup_timestamp + '.csv')
+            print('Backup {0:s} to {1:s}'.format(batch_filename, backup_filename))
+            shutil.copyfile(batch_filename, backup_filename)
+                 
+        # Create the new batch file
+        print('Write {0:s}'.format(batch_filename))
         with open(batch_filename, 'w') as csv_file:
-            csv_file.write('node_id,offset_id,lat,lon,bearing\n')
+            csv_file.write('lat,lon,bearing,image_path\n')
 
-            for point in points:
-                node_id   = point[5]
-                offset_id = point[3]
+            for idx, point in enumerate(points):
+                if limit > 0 and idx >= limit:
+                    break
+                    
                 lat       = point[0]
                 lon       = point[1]
-                bearing   = point[2]
+                bearing   = int(round(point[2]))
 
                 if bearing < 0:
-                    bearing = bearing + 360
+                    bearing = int(round(bearing + 360))
 
-                line = str(node_id) + ',' + str(offset_id) + ',' + str(lat) + ',' + str(lon) + ',' + str(bearing) + '\n'
-
-                csv_file.write(line)
+                image_path = os.path.join(self.download_directory, str(lat), str(lon), str(int(bearing)), 'gsv_0.jpg')
+                csv_file.write('{0:.6f},{0:.6f},{2:d},{3:s}\n'.format(lat, lon, bearing, image_path))
 
             csv_file.close()
 
 
-    def load_batch(self, batch_filename, verbose=False):
+    def process_batch_file(self, batch_filename, progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -63,53 +78,47 @@ class gsv_loader(object):
             The name of a CSV file containing co-ordinates and bearings to download from Google Street View.
             If the file has already been downloaded, it is skipped, to save costs.
         '''
+        self.cache_hits = 0
+        self.cache_miss = 0
+        
         df = pd.read_csv(batch_filename)
 
         # Iterate over every requested location in the batch
-        for index, row in df.iterrows():
-            #print(str(int(row['node_id'])))
-            self.load_coordinates(
-                str(int(row['node_id'])),
-                str(int(row['offset_id'])),
+        if progress:
+            tqdm.pandas()   
+
+            df.progress_apply(lambda row: self.load_coordinates(
                 row['lat'],
                 row['lon'],
                 row['bearing'],
-                verbose=verbose
+                verbose=verbose),
+                axis=1
             )
+        else:
+            for index, row in df.iterrows():
+                self.load_coordinates(
+                    row['lat'],
+                    row['lon'],
+                    row['bearing'],
+                    verbose=verbose
+                )
 
-
-    def load_batch_progress(self, batch_filename, verbose=False):
-        df = pd.read_csv(batch_filename)
-
-        tqdm.pandas()
-
-        df.progress_apply(lambda row: self.load_coordinates(
-            str(int(row['node_id'])),
-            str(int(row['offset_id'])),
-            row['lat'],
-            row['lon'],
-            row['bearing'],
-            verbose=verbose),
-            axis=1
-        )
-
+        print('GSV Cache Hits: {0:10d} Misses: {1:10d}'.format(self.cache_hits, self.cache_miss))
 
     def load_coordinates(
             self,
-            node_id,
-            offset_id,
             lat,
             lon,
             bearing,
             heading_offsets = [0,90,180,270],
             fov             = 90,
             pitch           = -20,
-            verbose=False
-    ):
+            verbose         = False
+    ):        
         location = str(lat) + ', ' + str(lon)
 
         for heading_offset in heading_offsets:
-            heading = round(bearing + heading_offset)
+            heading = int(round(bearing + heading_offset))
             if heading > 360:
                 heading = heading - 360
 
@@ -123,15 +132,16 @@ class gsv_loader(object):
             }]
         
             # Check if we have already downloaded anything
-            full_download_directory = os.path.join(self.download_directory, str(node_id), str(offset_id), str(int(heading)))
+            full_download_directory = os.path.join(self.download_directory, str(lat), str(lon), str(int(heading)))
 
             if os.path.isdir(full_download_directory):
+                self.cache_hits += 1
                 if verbose:
-                    print('{0:9s} {1:3s} {2:3d}: Using cached data'.format(str(node_id), str(offset_id), int(heading)))
+                    print('{0:9s} {1:3s} {2:3d}: Using cached data'.format(str(lat), str(lon), int(heading)))
             else:
+                self.cache_miss += 1
                 results = google_streetview.api.results(params)
                 results.download_links(full_download_directory)
                 if verbose:
-                    print('{0:9s} {1:3s} {2:3d}: Downloaded'.format(str(node_id), str(offset_id), int(heading)))
-
+                    print('{0:9s} {1:3s} {2:3d}: Downloaded'.format(str(lat), str(lon), int(heading)))      
 
