@@ -3,6 +3,8 @@ Code used for Minor Thesis research
 
 ## Jupyter Notebooks
 
+### Demos and previous work
+
 GPU_test.ipynb = train a simple TensorFlow 2 model to recognise characters (MNIST)
 as a demo/test to ensure GPU is being utilized in the environment
 
@@ -25,12 +27,10 @@ at 10m intervals
 Load PBN geojson file + OSM extract of Victoria,
 use local Nominatim serve to perform reverse-geocoding, use OSM to find the
 intersections within the bounding box of the original street, find the bearings,
-save as CSV for use in GSV_Demo.ipynb.  Appears to supercede Find_Intersections.ipynb.
+save as CSV for use in Gather_Training_Dataset.ipynb. 
 
-Google_Streetview_API.ipynb = Demonstrate how to download a GSV image for a
-co-ordinate (lat/lon) and how to calculate a bearing from one co-ordinate to the next
-
-GSV_Demo.ipynb = given a list of intersection co-ordinates along "EXISTING" PBN routes 
+### Gather_Training_Dataset.ipynb
+Given a list of intersection co-ordinates along "EXISTING" PBN routes 
 and the bearing at each co-ordinate, sample one co-ordinate at a time, allow manual
 specification of metres forward/backward from the intersection along the bearing and
 manual override of the bearing, then download and display 4x GSV images at 0/90/180/270
@@ -43,11 +43,12 @@ into both "EXISTING" vs not "EXISTING" (planned) so that we can draw them
 as differenct colours in Map_GEOJSON.ipynb
 
 ### OSM_Filter.ipynb
-Extract the "shape" of a "Locality" from a govt .geojson file,
-and then save it to a new .geojson file.  Includes instructions to then use "osmium"
-to filter an OSM extract down to just that locality, and save as an OXM file (XML)
+Extract the "shape" of a "Locality" from a government-issued .geojson file,
+and then save it to a new .geojson file.  Then, generate "osmium" commands to use
+the resulting .geojson file to filter an OSM file down to a smaller one for
+just that locality.
 
-### Parse_OSM.ipynb
+### OSM_to_GeoJSON.ipynb
 Load an OSM file into memory/dict objects, find the ways that
 have a "cycleway" tag, then save out as a .geojson file for drawing on a map
 
@@ -68,11 +69,20 @@ Test the use of gsv_loader.py to download GSV images (or ignore and re-use cache
 images if they have been downloaded before) based on a CSV batch file
 
 
+### Parse_OSM_Intersections_Ordered.ipynb
+
+Read an OSM file for an area, and a second slightly larger OSM file with a bounding box "margin"
+200m around the original area, to catch intersecting ways at the margins.  (From OSM_Filter.ipynb
+and osmium.)  Find every intersection on every "way", and generate a csv batch file
+with a list of points to sample on Google Street View, to be fed into the detection model.
+
 ## Python Classes
 
 osm_filter.py = Called by OSM_Filter.ipynb to load a "locality" geojson file and then
 filter it down to only one feature that matches the "vic_loca_2" property, then
 save it as a smaller geosjon file representing the "shape" of the selected locality
+
+osm_walker.py = Load OSM data and generate list of sample points
 
 gsv_loader.py = Download/cache GSV images requested in a batch CSV file
 node_id,offset_id,lat,lon,bearing
