@@ -10,3 +10,5 @@ data_sources/test1
 data_sources/test1_out
 Tensorflow
 jupyter/Tensorflow_disabled
+batches/backup
+detections

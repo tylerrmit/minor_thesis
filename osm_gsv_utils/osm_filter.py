@@ -29,7 +29,7 @@ class osm_filter(object):
 
         json_file.close()
 
-    def save_locality(self, locality, filename_shape, filter_value, filter_key='vic_loca_2', margin=200):
+    def save_locality(self, locality, filename_shape, filename_margin, filter_value, filter_key='vic_loca_2', margin=200):
         # Find the locality
         gj_index    = 0
         gj_selected = 0
@@ -92,6 +92,35 @@ class osm_filter(object):
         with open(filename_shape, 'w') as output_file_shape:
             dump(feature_collection, output_file_shape)
 
+        # Save locality bounding box with margin to a new file
+        geometry = {
+            'type': 'MultiPolygon',
+            'coordinates': [
+                [[
+                    [lon_min, lat_min],
+                    [lon_min, lat_max],
+                    [lon_max, lat_max],
+                    [lon_max, lat_min],
+                    [lon_min, lat_min]
+                ]]
+            ]
+        }
+        
+        bb_feature = {
+            'type': 'Feature',
+            'geometry': geometry,
+            'properties': {
+                'name': 'bounding box'
+            }
+        }
+        
+        features = []
+        features.append(bb_feature)
+        feature_collection = FeatureCollection(features)
+        
+        with open(filename_margin, 'w') as output_file_margin:
+            dump(feature_collection, output_file_margin)
+        
         print('\nRun the following two osmium commands:\n')
 
         print('First command:  Extract OSM data according to the official "shape" of the Locality\n')
@@ -101,9 +130,11 @@ class osm_filter(object):
         print('\nSecond command:  Extract OSM data for a bounding box ' + str(margin) + ' meters bigger than the "shape"')
         print('This second extract will be used to ensure we do not miss any intersections with streets that are JUST outside the locality\n')
 
-        print('osmium extract --bbox=' + str(margin_min.longitude) + ',' + str(margin_min.latitude) + ',' + str(margin_max.longitude) + ',' + str(margin_max.latitude) +
-            ' australia-latest.osm.pbf -o Locality_' + locality + '_margin.osm')
-
+        #print('osmium extract --bbox=' + str(margin_min.longitude) + ',' + str(margin_min.latitude) + ',' + str(margin_max.longitude) + ',' + str(margin_max.latitude) +
+        #    ' australia-latest.osm.pbf -o Locality_' + locality + '_margin.osm')
+        print('osmium extract --polygon=Locality_' + locality + '_margin.geojson australia-latest.osm.pbf -o Locality_' + locality + '.osm')
+        
+        
     def flatten_coordinates(self, coordinates):
         coordinates_out = []
 

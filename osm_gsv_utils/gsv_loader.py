@@ -51,7 +51,7 @@ class gsv_loader(object):
         # Create the new batch file
         print('Write {0:s}'.format(batch_filename))
         with open(batch_filename, 'w') as csv_file:
-            csv_file.write('lat,lon,bearing,image_path\n')
+            csv_file.write('lat,lon,bearing,image_path,way_id,node_id,offset_id\n')
 
             for idx, point in enumerate(points):
                 if limit > 0 and idx >= limit:
@@ -60,12 +60,21 @@ class gsv_loader(object):
                 lat       = point[0]
                 lon       = point[1]
                 bearing   = int(round(point[2]))
+                offset_id = point[3]
+                way_id    = point[4]
+                node_id   = point[5]
 
                 if bearing < 0:
                     bearing = int(round(bearing + 360))
 
-                image_path = os.path.join(self.download_directory, str(lat), str(lon), str(int(bearing)), 'gsv_0.jpg')
-                csv_file.write('{0:.6f},{0:.6f},{2:d},{3:s}\n'.format(lat, lon, bearing, image_path))
+                image_path = os.path.join(
+                    self.download_directory,
+                    '{0:.6f}'.format(lat),
+                    '{0:.6f}'.format(lon),
+                    str(int(bearing)),
+                    'gsv_0.jpg'
+                )
+                csv_file.write('{0:.6f},{1:.6f},{2:d},{3:s},{4:s},{5:s},{6:d}\n'.format(lat, lon, bearing, image_path, way_id, node_id, offset_id))
 
             csv_file.close()
 
@@ -132,7 +141,12 @@ class gsv_loader(object):
             }]
         
             # Check if we have already downloaded anything
-            full_download_directory = os.path.join(self.download_directory, str(lat), str(lon), str(int(heading)))
+            full_download_directory = os.path.join(
+                self.download_directory,
+                '{0:.6f}'.format(lat),
+                '{0:.6f}'.format(lon),
+                str(int(heading))
+            )
 
             if os.path.isdir(full_download_directory):
                 self.cache_hits += 1

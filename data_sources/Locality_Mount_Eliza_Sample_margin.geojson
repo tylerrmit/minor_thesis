@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "MultiPolygon", "coordinates": [[[[145.092, -38.178], [145.092, -38.160], [145.112, -38.160], [145.112, -38.178], [145.092, -38.178]]]]}, "properties": {"name": "bounding box"}}]}
