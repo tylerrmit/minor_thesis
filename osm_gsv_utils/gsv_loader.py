@@ -158,4 +158,4 @@ class gsv_loader(object):
                 results.download_links(full_download_directory)
                 if verbose:
                     print('{0:9s} {1:3s} {2:3d}: Downloaded'.format(str(lat), str(lon), int(heading)))      
-
+          

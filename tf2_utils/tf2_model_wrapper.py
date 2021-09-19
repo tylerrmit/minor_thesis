@@ -32,7 +32,7 @@ class tf2_model_wrapper(object):
 
     '''
 
-    def __init__(self, locality, margin, download_directory, trained_model_name):
+    def __init__(self, locality, margin, download_directory, output_directory, trained_model_name):
         '''
         Parameters
         ----------
@@ -51,10 +51,8 @@ class tf2_model_wrapper(object):
         self.locality            = locality
         self.margin              = margin
         self.download_directory  = download_directory
+        self.output_directory    = output_directory
         self.trained_model_name  = trained_model_name
-        
-        self.output_subdirectory = locality.replace(' ', '_') + '_' + str(margin) + 'm'
-        self.output_directory    = os.path.join('detections', self.output_subdirectory)
         
         print('Output directory for detections: ' + self.output_directory)
 

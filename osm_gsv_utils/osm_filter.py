@@ -4,6 +4,11 @@ Created on 06 Sep 2021
 @author: Tyler Saxton
 '''
 
+import os
+import sys
+
+import json
+
 import geojson
 from geojson import Feature, FeatureCollection, dump
 
@@ -28,6 +33,7 @@ class osm_filter(object):
             self.gj = geojson.load(json_file)
 
         json_file.close()
+
 
     def save_locality(self, locality, filename_shape, filename_margin, filter_value, filter_key='vic_loca_2', margin=200):
         # Find the locality
@@ -59,7 +65,7 @@ class osm_filter(object):
         geometry    = gj_selected['geometry']
         coordinates = geometry['coordinates']
 
-        flat_coordinates = self.flatten_coordinates(coordinates)
+        flat_coordinates = osm_filter.flatten_coordinates(coordinates)
 
         for point in flat_coordinates:
             lat_point = point[1]
@@ -133,17 +139,22 @@ class osm_filter(object):
         #print('osmium extract --bbox=' + str(margin_min.longitude) + ',' + str(margin_min.latitude) + ',' + str(margin_max.longitude) + ',' + str(margin_max.latitude) +
         #    ' australia-latest.osm.pbf -o Locality_' + locality + '_margin.osm')
         print('osmium extract --polygon=Locality_' + locality + '_margin.geojson australia-latest.osm.pbf -o Locality_' + locality + '.osm')
-        
-        
-    def flatten_coordinates(self, coordinates):
+                  
+    
+    @staticmethod
+    def flatten_coordinates(coordinates):
         coordinates_out = []
-
+    
         if type(coordinates[0]) is list:
             if type(coordinates[0][0]) is list:
                 for item in coordinates:
-                    coordinates_out = coordinates_out + self.flatten_coordinates(item)
+                    coordinates_out = coordinates_out + flatten_coordinates(item)
                 return coordinates_out
             else:
                 return coordinates
         else:
             return coordinates
+
+
+
+    
