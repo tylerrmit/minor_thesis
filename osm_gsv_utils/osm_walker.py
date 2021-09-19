@@ -35,15 +35,27 @@ class osm_walker(object):
         '''
 
         # Cache ways in dict by name
-        self.ways_by_name        = {} # Dictionary giving, for each way name, a list of ways
-        self.ways_by_id          = {} # Dictionary to look up the way details by the way id
-        self.way_names_by_id     = {} # Dictionary to look up the way name by the way id
-        self.way_names_per_node  = {} # Dictionary giving, for each node, the list of way NAMEs attached to the node
-        self.way_ids_per_node    = {} # Dictionary giving, for each node, the list of way IDs attached to the node
-        self.way_ends_per_node   = {} # Dictionary giving, for each node, the list of way IDs that start or end with the node
-        self.nodes               = {} # Dictionary giving node objects by node id
+        self.ways_by_name            = {} # Dictionary giving, for each way name, a list of ways
+        self.ways_by_id              = {} # Dictionary to look up the way details by the way id
+        self.way_names_by_id         = {} # Dictionary to look up the way name by the way id
+        self.way_names_per_node      = {} # Dictionary giving, for each node, the list of way NAMEs attached to the node
+        self.way_ids_per_node        = {} # Dictionary giving, for each node, the list of way IDs attached to the node
+        self.way_ends_per_node       = {} # Dictionary giving, for each node, the list of way IDs that start or end with the node
+        self.nodes                   = {} # Dictionary giving node objects by node id
         
-        self.linked_way_sections = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
+        self.node_coords             = {} # Dictionary giving [lat, lon] by node_id
+        
+        self.way_node_ids            = {} # Dictionary giving a list of node_ids (in order) for each way, by way_id
+        
+        self.linked_way_sections     = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
+        self.linked_way_sections_all = {} # Dictionary giving ways that have been re-connected by name, list of ALL node_ids in order
+        
+        self.detection_hits          = {} # Dictionary giving detection hits from a detection log
+        
+        self.unused_way_ids          = [] # Keep track of any way IDs we have not yet linked to a way segment, to make sure we get them all
+        
+        self.features                = [] # Features we are building to draw on a map
+        
         
         # Load the main XML file into memory
         # This assumes that we have reduced the OpenStreetMap data down to a small enough locality
@@ -85,6 +97,15 @@ class osm_walker(object):
                 # Otherwise use generic "ROUNDABOUT" or "SERVICE" for unnamed segments
                 elif not found_name and (k == 'junction' or k == 'highway'):
                     way_name = tag.getAttribute('v').upper()
+                    
+                    # Exclude unnamed FOOTWAY
+                    # Otherwise we get a squiggle near the scout hall at Baden Powell Drive,
+                    # where someone drew a meandering path in the grass.  GSV will give us
+                    # closest image, which WILL see a bike logo (on the ROAD, from the ROAD)
+                    # and the whole track looks like a bike path to nowhere
+                    # way_id 289029036
+                    if k == 'highway' and way_name == 'FOOTWAY':
+                        way_name = None
                 
                 # Skip natural features like cliff, coastline, wood, beach, water, bay
                 elif k == 'natural':
@@ -121,6 +142,11 @@ class osm_walker(object):
                             self.way_ids_per_node[ref].append(way_id)
                     else:
                         self.way_ids_per_node[ref] = [way_id]
+                        
+                    if way_id in self.way_node_ids:
+                        self.way_node_ids[way_id].append(ref)
+                    else:
+                        self.way_node_ids[way_id] = [ref]
                 
                 node_ends = [node_refs[0], node_refs[-1]]
                 for node_ref in node_ends:
@@ -138,6 +164,11 @@ class osm_walker(object):
             for node in nodes_xml:
                 id = node.getAttribute('id').upper()
                 self.nodes[id] = node
+                
+                lat = float(node.getAttribute('lat'))
+                lon = float(node.getAttribute('lon'))
+                
+                self.node_coords[id] = [lat, lon]
     
             if verbose:
                 print('Way count:          %d' % ways_xml.length)
@@ -173,7 +204,7 @@ class osm_walker(object):
         
     # Get a series of points from one point to the next, at regular intervals up to a desired offset
     @staticmethod
-    def expand_offsets(lat1, lon1, lat2, lon2, max_offset, interval, way_id, node_id):
+    def expand_offsets(lat1, lon1, lat2, lon2, max_offset, interval, way_id_start, way_id, node_id):
         sample_points = []
     
         bearing = Geodesic.WGS84.Inverse(float(lat1), float(lon1), float(lat2), float(lon2))['azi1']
@@ -198,6 +229,7 @@ class osm_walker(object):
                     g['lon2'],
                     int(round(bearing)),
                     step_i * interval * polarity,
+                    way_id_start,
                     way_id,
                     node_id
                 ]
@@ -208,7 +240,7 @@ class osm_walker(object):
 
 
     # Get every sample point for a way
-    def walk_way_intersections_by_id(self, way_id, min_offset=0, max_offset=0, interval=10, debug=False):
+    def walk_way_intersections_by_id(self, way_id_start, way_id, min_offset=0, max_offset=0, interval=10, debug=False):
         # Initialise list of points that will be returned
         sample_points = []
     
@@ -224,11 +256,9 @@ class osm_walker(object):
         for idx, node_ref in enumerate(node_refs):
             ref = node_ref.getAttribute('ref')
         
-            way_names_for_node = self.way_names_per_node[ref]
-        
-            if len(way_names_for_node) > 1:
+            if (self.is_intersection_node(ref)) or (idx == 0) or (idx == len(node_refs) - 1):
                 if debug:
-                    print('Debug Node Intersection: {0:s} {1:d} {2:.6f}, {3:.6f}'.format(ref, len(self.way_names_for_node),
+                    print('Debug Node Intersection: {0:s} {1:d} {2:.6f}, {3:.6f}'.format(ref, len(self.way_names_for_node[ref]),
                         float(self.nodes[ref].getAttribute('lat')), float(self.nodes[ref].getAttribute('lon'))))
             
                 # Found an intersection!  We will output for this one
@@ -242,6 +272,7 @@ class osm_walker(object):
                         self.nodes[node_refs[idx-1].getAttribute('ref')].getAttribute('lon'),
                         min_offset,
                         interval,
+                        way_id_start,
                         way_id,
                         ref
                     )
@@ -266,7 +297,7 @@ class osm_walker(object):
                     )
 
                 sample_point = [
-                    float(self.nodes[ref].getAttribute('lat')), float(self.nodes[ref].getAttribute('lon')), bearing, 0, way_id, ref
+                    float(self.nodes[ref].getAttribute('lat')), float(self.nodes[ref].getAttribute('lon')), bearing, 0, way_id_start, way_id, ref
                 ]
                         
                 sample_points.append(sample_point)
@@ -280,6 +311,7 @@ class osm_walker(object):
                         self.nodes[node_refs[idx+1].getAttribute('ref')].getAttribute('lon'),
                         max_offset,
                         interval,
+                        way_id_start,
                         way_id,
                         ref
                     )
@@ -334,7 +366,7 @@ class osm_walker(object):
         return False
         
     # At the end of a way, does it join to another way by the same name?
-    def find_next_way(self, way_id, unused_way_ids, match_name=True):
+    def find_next_way(self, way_id, match_name=True):
         # Retrieve the details of the way, and find the last node ID
         way           = self.ways_by_id[way_id]
         node_refs     = way.getElementsByTagName('nd')
@@ -346,7 +378,7 @@ class osm_walker(object):
 
         # See if any of them have the same name
         for intersecting_way_id in intersecting_ways:
-            if intersecting_way_id != way_id and intersecting_way_id in unused_way_ids:
+            if intersecting_way_id != way_id and intersecting_way_id in self.unused_way_ids:
                 if match_name:
                     intersecting_way_name = self.way_names_by_id[intersecting_way_id]
             
@@ -366,7 +398,7 @@ class osm_walker(object):
         # If we don't want to try to walk in a natural order, do it the simple and fast way
         if not ordered:
             for way_id in self.ways_by_id.keys():
-                points = self.walk_way_intersections_by_id(way_id, min_offset=min_offset, max_offset=max_offset, interval=interval)
+                points = self.walk_way_intersections_by_id(way_id, way_id, min_offset=min_offset, max_offset=max_offset, interval=interval)
     
             all_points = all_points + points
 
@@ -393,7 +425,7 @@ class osm_walker(object):
                 if verbose:
                     print('==> {0:s}'.format(way_id))
                     
-                section_points = section_points + self.walk_way_intersections_by_id(way_id, min_offset=min_offset, max_offset=max_offset, interval=interval)
+                section_points = section_points + self.walk_way_intersections_by_id(way_id_start, way_id, min_offset=min_offset, max_offset=max_offset, interval=interval)
             
             all_points = all_points + section_points
                 
@@ -405,7 +437,8 @@ class osm_walker(object):
         # order that appears sensible to a human
     
         # Reset linkages between ways of same name
-        self.linked_way_sections = {}
+        self.linked_way_sections     = {}
+        self.linked_way_sections_all = {}
         
         # Iterate through each distinct way name (including generic ways like "junction")
         for way_name in self.ways_by_name.keys():
@@ -425,7 +458,7 @@ class osm_walker(object):
                     way_starts.append(way_id)
                                     
             # Initialise a list to keep track of ways that we haven't walked yet
-            unused_way_ids = way_ids.copy()
+            self.unused_way_ids = way_ids.copy()
                     
             # Process the next way start
             while len(way_starts) > 0:
@@ -433,67 +466,323 @@ class osm_walker(object):
                 way_id = way_starts.pop()
                 
                 section = [way_id]
-            
+                                        
+                # Retrieve the details of the way, and find each node ID
+                section_all = []
+                
+                way         = self.ways_by_id[way_id]
+                node_refs   = way.getElementsByTagName('nd')
+                
+                for node_ref in node_refs:
+                    ref = node_ref.getAttribute('ref')
+                    if ref not in section_all:
+                        section_all.append(ref)
+                        
                 if verbose:
-                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('START', way_id, self.way_names_by_id[way_id], len(unused_way_ids)))
+                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
                  
                 # Remove this way start from the list of ways we have not processed yet
-                unused_way_ids.remove(way_id)
+                self.unused_way_ids.remove(way_id)
             
                 # Recursively Walk down adjoining ways in order
-                next_way_id = self.find_next_way(way_id, unused_way_ids, match_name=True)
+                next_way_id = self.find_next_way(way_id, match_name=True)
             
                 while next_way_id:
                     way_id = next_way_id
                     
-                    section.append(way_id)
+                    section = section + [way_id]
+                                    
+                    way         = self.ways_by_id[way_id]
+                    node_refs   = way.getElementsByTagName('nd')
                 
+                    for node_ref in node_refs:
+                        ref = node_ref.getAttribute('ref')
+                        if ref not in section_all:
+                            section_all.append(ref)
+                                           
                     if verbose:
-                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(unused_way_ids)))
+                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
                                   
                     # Remove this way start from the list of ways we have not processed yet
-                    unused_way_ids.remove(way_id)
+                    self.unused_way_ids.remove(way_id)
                     if way_id in way_starts:
                         way_starts.remove(way_id)
                 
-                    next_way_id = self.find_next_way(way_id, unused_way_ids, match_name=True)
-                    
-                self.linked_way_sections[way_id] = section
+                    next_way_id = self.find_next_way(way_id, match_name=True)
                 
+                self.linked_way_sections_all[way_id] = section_all                    
+                self.linked_way_sections[way_id]     = section
+                
+                if verbose:
+                    print('section:     {0:3d} {1:s}'.format(len(section), str(section)))
+                    print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))
+                    
             # Handle any unused ways that weren't a "way start" and weren't linked to one
-            while len(unused_way_ids) > 0:
+            while len(self.unused_way_ids) > 0:
                 # Process the next way id
-                way_id = unused_way_ids.pop()
+                way_id = self.unused_way_ids.pop()
                 
                 section = [way_id]
             
+                # Retrieve the details of the way, and find each node ID
+                section_all = []
+                
+                way         = self.ways_by_id[way_id]
+                node_refs   = way.getElementsByTagName('nd')
+                
+                for node_ref in node_refs:
+                    ref = node_ref.getAttribute('ref')
+                    if ref not in section_all:
+                        section_all.append(ref)
+                                        
                 if verbose:
-                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(unused_way_ids)))
+                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
             
                 # Recursively walk down any ajoining ways in order
-                next_way_id = self.find_next_way(way_id, unused_way_ids, match_name=False)
+                next_way_id = self.find_next_way(way_id, match_name=False)
             
                 while next_way_id:
                     way_id = next_way_id
                     
-                    section.append(way_id)
+                    section = section + [way_id]
                 
+                    way         = self.ways_by_id[way_id]
+                    node_refs   = way.getElementsByTagName('nd')
+                
+                    for node_ref in node_refs:
+                        ref = node_ref.getAttribute('ref')
+                        if ref not in section_all:
+                            section_all.append(ref)
+                                            
                     if verbose:
-                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(unused_way_ids)))
+                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
             
                     # Remove this way start from the list of ways we have not processed yet
-                    unused_way_ids.remove(way_id)
+                    self.unused_way_ids.remove(way_id)
                 
-                    next_way_id = self.find_next_way(way_id, unused_way_ids, match_name=False)
+                    next_way_id = self.find_next_way(way_id, match_name=False)
                 
-                self.linked_way_sections[way_id] = section  
+                self.linked_way_sections_all[way_id] = section_all              
+                self.linked_way_sections[way_id]     = section
     
     
-    @staticmethod
-    def load_detection_log(filename):
+    def load_detection_log(self, filename):
         df = pd.read_csv(filename)
         
         for index, row in df.iterrows():
-            # row['lat'], lon, bearing, way_id, node_id, offset_id, score, bbox_0, bbox_1, bbox_2, bbox_3
-            print('.')
+            # row['lat'], lon, bearing, way_id_start, way_id, node_id, offset_id, score, bbox_0, bbox_1, bbox_2, bbox_3
+            key = '{0:.0f}-{1:.0f}'.format(row['way_id_start'], row['node_id'])
+
+            if key in self.detection_hits:
+                self.detection_hits[key].append([row['offset_id'], row['score']])
+            else:
+                self.detection_hits[key] = [[row['offset_id'], row['score']]]
+                
+ 
+    def is_intersection_node(self, node_id):
+        if len(self.way_names_per_node[node_id]) > 1:
+            return True
+        else:
+            return False
+        
+        
+    def write_detected_geojson(self, name, detected_geojson_filename, intersection_skip_limit=1, verbose=False):
+        self.features = []
+        
+        for way_id_start in self.linked_way_sections.keys():
+            self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, verbose=verbose)
+        
+        featurecollection = {
+            'type':     'FeatureCollection',
+            'name':     name,
+            'features': self.features
+        }
+        
+        print('Writing to: ' + detected_geojson_filename)
+        with open(detected_geojson_filename, 'w') as outfile:
+            json.dump(featurecollection, outfile, indent=4)
+            outfile.close()
+    
+    
+    def draw_way_segment(self, way_id_start, intersection_skip_limit=1, verbose=False):
+        self.section_node_list = self.linked_way_sections_all[way_id_start]
+        
+        self.node_is_intersection = {}
+        self.node_hit_detected    = {}
+        self.node_hit_assumed     = {}
+        
+        # Determine whether each node is an intersection, whether a hit was detected
+        for idx, node_id in enumerate(self.section_node_list):
+            #if (self.is_intersection_node(node_id)) or (idx == 0) or (idx == len(self.section_node_list) - 1):
+            if self.is_intersection_node(node_id):
+                self.node_is_intersection[node_id] = 1
+            else:
+                self.node_is_intersection[node_id] = 0
+                
+            key = str(way_id_start) + '-' + str(node_id)
+            
+            if key in self.detection_hits:
+                self.node_hit_detected[node_id] = 1
+            else:
+                self.node_hit_detected[node_id] = 0
+            
+            self.node_hit_assumed[node_id]  = 0
+        
+        # Infer between hits if there aren't too many missed intersections
+        prev_hit = self.draw_find_next_hit(-1)
+        next_hit = self.draw_find_next_hit(prev_hit)
+        
+        while (prev_hit is not None) and (next_hit is not None):
+            missed_intersections = self.draw_count_intersection_miss_between(prev_hit, next_hit)
+            
+            if (missed_intersections is not None) and (missed_intersections <= intersection_skip_limit):
+                for idx in range(prev_hit+1, next_hit):
+                    self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
+                    
+            prev_hit = next_hit
+            next_hit = self.draw_find_next_hit(next_hit)
+            
+        # Assume hits before first hit if there are no prior intersections (edge of map)
+        # and there were continuous hits assumed to that point
+        first_hit          = self.draw_find_next_hit(-1)
+        second_hit         = self.draw_find_next_hit(first_hit)
+        first_intersection = self.draw_find_next_intersection(-1)
+        
+        if (first_hit is not None) and (second_hit is not None) and (first_intersection is not None) and (first_intersection >= first_hit):
+            missed_intersections = self.draw_count_intersection_miss_between(first_hit, second_hit)
+            if missed_intersections <= intersection_skip_limit:
+                for idx in range(0, first_hit):
+                    self.node_hit_assumed[self.section_node_list[idx]] = 1
+                    
+        # Assume hits after last hit if there are no further intersections (edge of map)
+        # and there were continuous hits assumed to that point
+        last_hit          = self.draw_find_prev_hit(len(self.section_node_list))
+        second_last_hit   = self.draw_find_prev_hit(last_hit)
+        last_intersection = self.draw_find_prev_intersection(len(self.section_node_list))
+        
+        if (last_hit is not None) and (second_last_hit is not None) and (last_intersection is not None) and (last_intersection <= last_hit):
+            missed_intersections = self.draw_count_intersection_miss_between(second_last_hit, last_hit)
+            if missed_intersections <= intersection_skip_limit:
+                for idx in range(last_hit+1, len(self.section_node_list)):
+                    self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
+           
+        # Output the conclusion
+        if verbose:
+            for idx, node_id in enumerate(self.section_node_list):       
+                print('{0:12s} {1:3d} => {2:d} {3:d} {4:d} {5:.6f}, {6:.6f}'.format(
+                    node_id,
+                    idx,
+                    self.node_is_intersection[node_id],
+                    self.node_hit_detected[node_id],
+                    self.node_hit_assumed[node_id],
+                    self.node_coords[node_id][0],
+                    self.node_coords[node_id][1]
+                ))
+            
+        # Draw geojson features
+        # Gather list of list of coordinates -- each list of coordinates represents an unbroken path to draw
+        self.coordinates_list_list = []
+        
+        coordinates_open = False
+        coordinates      = []
+        
+        for idx in range(0, len(self.section_node_list)):
+            node_id = self.section_node_list[idx]
+            
+            hit = self.node_hit_detected[node_id] + self.node_hit_assumed[node_id]
+            
+            if hit:
+                coordinates_open = True
+                coordinates      = coordinates + [[self.node_coords[node_id][1], self.node_coords[node_id][0]]]
+            elif coordinates_open:
+                if len(coordinates) > 1:
+                    self.coordinates_list_list = self.coordinates_list_list + [coordinates]
+                coordinates_open           = False
+                coordinates                = []
+                
+        if coordinates_open:
+            if len(coordinates) > 1:
+                self.coordinates_list_list = self.coordinates_list_list + [coordinates]
+            coordinates_open           = False
+            coordinates                = []
+                
+        if len(self.coordinates_list_list) <= 0:
+            return None
+                
+        for i in range(0, len(self.coordinates_list_list)):
+            feature = {
+                'type': 'Feature',
+                'properties': {
+                    'id': (str(way_id_start) + '-' + str(i)),
+                    'name': (str(way_id_start) + '-' + str(i) + '-' + str(len(self.coordinates_list_list[i]))),
+                    'version': '1'
+                },
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': self.coordinates_list_list[i]
+                }
+            }
+            
+            self.features.append(feature)
+        
+    
+    def draw_find_next_intersection(self, idx):        
+        if idx is None:
+            return None
+            
+        idx += 1
+        while idx < len(self.section_node_list):
+            if self.node_is_intersection[self.section_node_list[idx]]:
+                return idx
+            idx += 1
+        return None
+            
+    def draw_find_prev_intersection(self, idx):        
+        if idx is None:
+            return None
+            
+        idx -= 1
+        while idx >= 0:
+            if self.node_is_intersection[self.section_node_list[idx]]:
+                return idx
+            idx -= 1
+        return None
+
+    def draw_find_next_hit(self, idx):        
+        if idx is None:
+            return None
+            
+        idx += 1
+        while idx < len(self.section_node_list):
+            if self.node_hit_detected[self.section_node_list[idx]]:
+                return idx
+            idx += 1
+        return None
+        
+            
+    def draw_find_prev_hit(self, idx):        
+        if idx is None:
+            return None
+            
+        idx -= 1
+        while idx >= 0:
+            if self.node_hit_detected[self.section_node_list[idx]]:
+                return idx   
+            idx -= 1
+        return None
+            
+    def draw_count_intersection_miss_between(self, prev_hit, next_hit):       
+        if prev_hit is None or next_hit is None:
+            return None
+            
+        intersection_miss_between = 0
+        
+        for idx in range(prev_hit+1, next_hit):
+            if (self.node_is_intersection[self.section_node_list[idx]]) and (self.node_hit_detected[self.section_node_list[idx]] == 0):
+                intersection_miss_between += 1
+                
+        return intersection_miss_between
+        
+                
+    
     

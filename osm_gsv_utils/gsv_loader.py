@@ -51,18 +51,19 @@ class gsv_loader(object):
         # Create the new batch file
         print('Write {0:s}'.format(batch_filename))
         with open(batch_filename, 'w') as csv_file:
-            csv_file.write('lat,lon,bearing,image_path,way_id,node_id,offset_id\n')
+            csv_file.write('lat,lon,bearing,image_path,way_start_id,way_id,node_id,offset_id\n')
 
             for idx, point in enumerate(points):
                 if limit > 0 and idx >= limit:
                     break
                     
-                lat       = point[0]
-                lon       = point[1]
-                bearing   = int(round(point[2]))
-                offset_id = point[3]
-                way_id    = point[4]
-                node_id   = point[5]
+                lat          = point[0]
+                lon          = point[1]
+                bearing      = int(round(point[2]))
+                offset_id    = point[3]
+                way_start_id = point[4]
+                way_id       = point[5]
+                node_id      = point[6]
 
                 if bearing < 0:
                     bearing = int(round(bearing + 360))
@@ -74,7 +75,7 @@ class gsv_loader(object):
                     str(int(bearing)),
                     'gsv_0.jpg'
                 )
-                csv_file.write('{0:.6f},{1:.6f},{2:d},{3:s},{4:s},{5:s},{6:d}\n'.format(lat, lon, bearing, image_path, way_id, node_id, offset_id))
+                csv_file.write('{0:.6f},{1:.6f},{2:d},{3:s},{4:s},{5:s},{6:s},{7:d}\n'.format(lat, lon, bearing, image_path, way_start_id, way_id, node_id, offset_id))
 
             csv_file.close()
 

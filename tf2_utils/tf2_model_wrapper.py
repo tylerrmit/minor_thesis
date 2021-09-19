@@ -94,125 +94,132 @@ class tf2_model_wrapper(object):
         
         return detections
 
-    def apply_model(self, lat, lon, bearing, way_id, node_id, offset_id, min_score=0.5, write=True, display=False, log=False, verbose=False):
-        image_filename = os.path.join(
-            '{0:.6f}'.format(lat),
-            '{0:.6f}'.format(lon),
-            str(int(bearing)),
-            'gsv_0.jpg'
-        )
-        output_filename = '{0:.6f}_{1:.6f}_{2:d}.jpg'.format(lat, lon, bearing)
-        image_path      = os.path.join(self.download_directory, image_filename)
-        output_path     = os.path.join(self.output_directory, output_filename)     
-        
-        if verbose:
-            print('Input path:  ' + image_path)
-            print('Output path: ' + output_path)       
-
-        if not os.path.exists(image_path):
-            if verbose:
-                # Sometimes GSV just didn't have an image near where we were looking, ignore
-                print('NOTE: [' + image_path + '] does not exist')
-            return
-        
-        # Read the image and convert it into a tensor
-        img          = cv2.imread(image_path)
-        image_np     = np.array(img)
-        input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
-              
-        # Detect objects of interest using the model
-        detections = self.detect_fn(input_tensor)
-
-        num_detections = int(detections.pop('num_detections'))
-        detections = {key: value[0, :num_detections].numpy()
-                    for key, value in detections.items()}
-        detections['num_detections'] = num_detections
-
-        # Count detections that met the threshold
-        num_detections_threshold = 0
-    
-        if num_detections > 0:
-            for idx, score in enumerate(detections['detection_scores']):
-                if score >= min_score:
-                    num_detections_threshold = num_detections_threshold + 1
-        
-        if verbose:
-            print('num_detections_threshold: ' + str(num_detections_threshold))
-        
-            if num_detections_threshold > 0:
-                for idx, score in enumerate(detections['detection_scores']):
-                    if score >= min_score:
-                        print('Detection box:            ' + str(score) + ' ' + str(detections['detection_boxes'][idx]))
-    
-        if log and num_detections_threshold > 0:
-            try:            
-                detection_log_path = os.path.join(self.output_directory, 'detection_log.csv')
-            
-                if not os.path.exists(detection_log_path):
-                    detection_log = open(detection_log_path, 'w')
-                    detection_log.write('lat,lon,bearing,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3\n')
-                else:
-                    detection_log = open(detection_log_path, 'a')
+    def apply_model(self, lat, lon, bearing, way_start_id, way_id, node_id, offset_id, heading_offsets=[0,90,180,270], min_score=0.5, write=True, display=False, log=False, verbose=False):
+        for heading_offset in heading_offsets:
+            heading = int(round(bearing + heading_offset))
+            if heading > 360:
+                heading = heading - 360
                 
-                for idx, score in enumerate(detections['detection_scores']):
-                    if score >= min_score:
-                        detection_log.write(
-                            '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:f},{7:f},{8:f},{9:f},{10:f}\n'.format(
-                                lat,
-                                lon,
-                                bearing,
-                                way_id,
-                                node_id,
-                                offset_id,
-                                score,
-                                detections['detection_boxes'][idx][0],
-                                detections['detection_boxes'][idx][1],
-                                detections['detection_boxes'][idx][2],
-                                detections['detection_boxes'][idx][3]
-                            )
-                        )
-            
-                detection_log.close()
-            
-            except Exception as e:
-                print('Unable to log detections for [' + image_filename + ']: ' + str(e))
-        
-        
-        if write or display:
-            # Detection_classes should be ints.
-            detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
-
-            # Create a copy of the image with detection boxes overlaid
-            label_id_offset = 1
-            image_np_with_detections = image_np.copy()
-
-            viz_utils.visualize_boxes_and_labels_on_image_array(
-                image_np_with_detections,
-                detections['detection_boxes'],
-                detections['detection_classes']+label_id_offset,
-                detections['detection_scores'],
-                self.category_index,
-                use_normalized_coordinates = True,
-                max_boxes_to_draw          = 5,
-                min_score_thresh           = min_score,
-                agnostic_mode              = False
+            image_filename = os.path.join(
+                '{0:.6f}'.format(lat),
+                '{0:.6f}'.format(lon),
+                str(int(heading)),
+                'gsv_0.jpg'
             )
+            output_filename = '{0:.6f}_{1:.6f}_{2:d}.jpg'.format(lat, lon, heading)
+            image_path      = os.path.join(self.download_directory, image_filename)
+            output_path     = os.path.join(self.output_directory, output_filename)     
+        
+            if verbose:
+                print('Input path:  ' + image_path)
+                print('Output path: ' + output_path)       
 
-            if write:
-                # Write the output image to disk
+            if not os.path.exists(image_path):
                 if verbose:
-                    print('Writing:     ' + output_path)
-                cv2.imwrite(output_path, image_np_with_detections)
+                    # Sometimes GSV just didn't have an image near where we were looking, ignore
+                    print('NOTE: [' + image_path + '] does not exist')
+                return
+        
+            # Read the image and convert it into a tensor
+            img          = cv2.imread(image_path)
+            image_np     = np.array(img)
+            input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
+              
+            # Detect objects of interest using the model
+            detections = self.detect_fn(input_tensor)
 
-            if display:
-                # Convert color space of the output image
-                image_np_converted = cv2.cvtColor(image_np_with_detections, cv2.COLOR_BGR2RGB)
+            num_detections = int(detections.pop('num_detections'))
+            detections = {key: value[0, :num_detections].numpy()
+                        for key, value in detections.items()}
+            detections['num_detections'] = num_detections
 
-                plt.imshow(image_np_converted)
-                plt.show()
+            # Count detections that met the threshold
+            num_detections_threshold = 0
+    
+            if num_detections > 0:
+                for idx, score in enumerate(detections['detection_scores']):
+                    if score >= min_score:
+                        num_detections_threshold = num_detections_threshold + 1
+        
+            if verbose:
+                print('num_detections_threshold: ' + str(num_detections_threshold))
+        
+                if num_detections_threshold > 0:
+                    for idx, score in enumerate(detections['detection_scores']):
+                        if score >= min_score:
+                            print('Detection box:            ' + str(score) + ' ' + str(detections['detection_boxes'][idx]))
+    
+            if log and num_detections_threshold > 0:
+                try:            
+                    detection_log_path = os.path.join(self.output_directory, 'detection_log.csv')
+            
+                    if not os.path.exists(detection_log_path):
+                        detection_log = open(detection_log_path, 'w')
+                        detection_log.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3\n')
+                    else:
+                        detection_log = open(detection_log_path, 'a')
+                
+                    for idx, score in enumerate(detections['detection_scores']):
+                        if score >= min_score:
+                            detection_log.write(
+                                '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f}\n'.format(
+                                    lat,
+                                    lon,
+                                    bearing,
+                                    heading,
+                                    way_start_id,
+                                    way_id,
+                                    node_id,
+                                    offset_id,
+                                    score,
+                                    detections['detection_boxes'][idx][0],
+                                    detections['detection_boxes'][idx][1],
+                                    detections['detection_boxes'][idx][2],
+                                    detections['detection_boxes'][idx][3]
+                                )
+                            )
+            
+                    detection_log.close()
+            
+                except Exception as e:
+                    print('Unable to log detections for [' + image_filename + ']: ' + str(e))
+        
+        
+            if write or display:
+                # Detection_classes should be ints.
+                detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
+
+                # Create a copy of the image with detection boxes overlaid
+                label_id_offset = 1
+                image_np_with_detections = image_np.copy()
+
+                viz_utils.visualize_boxes_and_labels_on_image_array(
+                    image_np_with_detections,
+                    detections['detection_boxes'],
+                    detections['detection_classes']+label_id_offset,
+                    detections['detection_scores'],
+                    self.category_index,
+                    use_normalized_coordinates = True,
+                    max_boxes_to_draw          = 5,
+                    min_score_thresh           = min_score,
+                    agnostic_mode              = False
+                )
+
+                if write:
+                    # Write the output image to disk
+                    if verbose:
+                        print('Writing:     ' + output_path)
+                    cv2.imwrite(output_path, image_np_with_detections)
+
+                if display:
+                    # Convert color space of the output image
+                    image_np_converted = cv2.cvtColor(image_np_with_detections, cv2.COLOR_BGR2RGB)
+
+                    plt.imshow(image_np_converted)
+                    plt.show()
                 
                 
-    def process_batch_file(self, batch_filename, progress=False, verbose=False):
+    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -237,6 +244,7 @@ class tf2_model_wrapper(object):
                 row['lat'],
                 row['lon'],
                 row['bearing'],
+                row['way_start_id'],
                 row['way_id'],
                 row['node_id'],
                 row['offset_id'],
@@ -252,6 +260,7 @@ class tf2_model_wrapper(object):
                     row['lat'],
                     row['lon'],
                     row['bearing'],
+                    row['way_start_id'],
                     row['way_id'],
                     row['node_id'],
                     row['offset_id'],
