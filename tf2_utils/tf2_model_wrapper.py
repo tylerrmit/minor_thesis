@@ -48,11 +48,13 @@ class tf2_model_wrapper(object):
         print(tf.config.list_physical_devices('GPU'))
         
         # Derived/Static Configuration
-        self.locality            = locality
-        self.margin              = margin
-        self.download_directory  = download_directory
-        self.output_directory    = output_directory
-        self.trained_model_name  = trained_model_name
+        self.locality              = locality
+        self.margin                = margin
+        self.download_directory    = download_directory
+        self.output_directory      = output_directory
+        self.output_directory_hits = os.path.join(self.output_directory, 'hits')
+        self.output_directory_miss = os.path.join(self.output_directory, 'miss')
+        self.trained_model_name    = trained_model_name
         
         print('Output directory for detections: ' + self.output_directory)
 
@@ -64,6 +66,10 @@ class tf2_model_wrapper(object):
         # Create output directory if it does not already exist
         if not os.path.isdir(self.output_directory):
             os.makedirs(self.output_directory)
+        if not os.path.isdir(self.output_directory_hits):
+            os.makedirs(self.output_directory_hits)
+        if not os.path.isdir(self.output_directory_miss):
+            os.makedirs(self.output_directory_miss)
             
         # Load pipeline config and build a detection model
         self.configs         = config_util.get_configs_from_pipeline_file(self.pipeline_config_file)
@@ -99,6 +105,16 @@ class tf2_model_wrapper(object):
             heading = int(round(bearing + heading_offset))
             if heading > 360:
                 heading = heading - 360
+            
+            if lat < 0:
+                lat_str = 's{0:.6f}'.format(abs(lat))
+            else:
+                lat_str = 'n{0:.6f}'.format(abs(lat))
+                
+            if lon < 0:
+                lon_str = 'e{0:.6f}'.format(abs(lon))
+            else:
+                lon_str = 'w{0:.6f}'.format(abs(lon))
                 
             image_filename = os.path.join(
                 '{0:.6f}'.format(lat),
@@ -106,13 +122,11 @@ class tf2_model_wrapper(object):
                 str(int(heading)),
                 'gsv_0.jpg'
             )
-            output_filename = '{0:.6f}_{1:.6f}_{2:d}.jpg'.format(lat, lon, heading)
-            image_path      = os.path.join(self.download_directory, image_filename)
-            output_path     = os.path.join(self.output_directory, output_filename)     
+            output_filename = '{0:s}_{1:s}_{2:d}.jpg'.format(lat_str, lon_str, heading)
+            image_path      = os.path.join(self.download_directory, image_filename)     
         
             if verbose:
-                print('Input path:  ' + image_path)
-                print('Output path: ' + output_path)       
+                print('Input path:  ' + image_path)     
 
             if not os.path.exists(image_path):
                 if verbose:
@@ -207,6 +221,11 @@ class tf2_model_wrapper(object):
 
                 if write:
                     # Write the output image to disk
+                    if num_detections_threshold > 0:
+                        output_path = os.path.join(self.output_directory_hits, output_filename)
+                    else:
+                        output_path = os.path.join(self.output_directory_miss, output_filename)
+                    
                     if verbose:
                         print('Writing:     ' + output_path)
                     cv2.imwrite(output_path, image_np_with_detections)
@@ -219,7 +238,7 @@ class tf2_model_wrapper(object):
                     plt.show()
                 
                 
-    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], progress=False, verbose=False):
+    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], min_score=0.5, progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -248,10 +267,11 @@ class tf2_model_wrapper(object):
                 row['way_id'],
                 row['node_id'],
                 row['offset_id'],
-                write   = True,
-                display = False,
-                log     = True,
-                verbose=verbose),
+                min_score = min_score,
+                write     = True,
+                display   = False,
+                log       = True,
+                verbose   = verbose),
                 axis=1
             )
         else:
@@ -264,10 +284,11 @@ class tf2_model_wrapper(object):
                     row['way_id'],
                     row['node_id'],
                     row['offset_id'],
-                    write   = True,
-                    display = False,
-                    log     = True,
-                    verbose=verbose
+                    min_score = min_score,
+                    write     = True,
+                    display   = False,
+                    log       = True,
+                    verbose   = verbose
                 )
                 
         return detection_log_path
