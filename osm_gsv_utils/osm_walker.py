@@ -64,7 +64,7 @@ class osm_walker(object):
         self.both_features               = []
         self.tagged_only_features        = []
         self.detected_only_features      = []
-               
+                
         
         # Load the main XML file into memory
         # This assumes that we have reduced the OpenStreetMap data down to a small enough locality
@@ -491,7 +491,7 @@ class osm_walker(object):
             while len(way_starts) > 0:
                 # Process the next start way id
                 way_id = way_starts.pop()
-                
+                                
                 section     = [way_id]
                                         
                 # Retrieve the details of the way, and find each node ID
@@ -518,7 +518,7 @@ class osm_walker(object):
             
                 while next_way_id:
                     way_id = next_way_id
-                    
+                                        
                     section = section + [way_id]
                                     
                     way         = self.ways_by_id[way_id]
@@ -552,7 +552,7 @@ class osm_walker(object):
             while len(self.unused_way_ids) > 0:
                 # Process the next way id
                 way_id = self.unused_way_ids.pop()
-                
+                                
                 section = [way_id]
             
                 # Retrieve the details of the way, and find each node ID
@@ -576,7 +576,7 @@ class osm_walker(object):
             
                 while next_way_id:
                     way_id = next_way_id
-                    
+                                        
                     section = section + [way_id]
                 
                     way         = self.ways_by_id[way_id]
@@ -629,6 +629,7 @@ class osm_walker(object):
         self.tagged_only_features   = []
         
         for way_id_start in self.linked_way_sections.keys():
+        #for way_id_start in ['841124847']:
             self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, verbose=verbose)
         
         self.write_geojson(name, geojson_directory, 'hit',      self.detected_features)
@@ -657,7 +658,7 @@ class osm_walker(object):
             outfile.close()
     
     
-    def draw_way_segment(self, way_id_start, intersection_skip_limit=1, verbose=False):
+    def draw_way_segment(self, way_id_start, intersection_skip_limit=1, infer_ends=True, verbose=False):
         self.section_node_list = self.linked_way_sections_all[way_id_start]
         self.section_node_cwys = self.linked_way_sections_cwy[way_id_start]
         
@@ -691,52 +692,57 @@ class osm_walker(object):
             
             
         # Infer between hits if there aren't too many missed intersections
-        prev_hit = self.draw_find_next_hit(-1)
-        next_hit = self.draw_find_next_hit(prev_hit)
-        
-        while (prev_hit is not None) and (next_hit is not None):
-            missed_intersections = self.draw_count_intersection_miss_between(prev_hit, next_hit)
+        if intersection_skip_limit > 0:
+            prev_hit = self.draw_find_next_hit(-1)
+            next_hit = self.draw_find_next_hit(prev_hit)
             
-            if (missed_intersections is not None) and (missed_intersections <= intersection_skip_limit):
-                for idx in range(prev_hit+1, next_hit):
-                    self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
-                    
-            prev_hit = next_hit
-            next_hit = self.draw_find_next_hit(next_hit)
+            while (prev_hit is not None) and (next_hit is not None):
+                missed_intersections = self.draw_count_intersection_miss_between(prev_hit, next_hit)
             
-        # Assume hits before first hit if there are no prior intersections (edge of map)
-        # and there were continuous hits assumed to that point
-        first_hit          = self.draw_find_next_hit(-1)
-        second_hit         = self.draw_find_next_hit(first_hit)
-        first_intersection = self.draw_find_next_intersection(-1)
-        
-        if (first_hit is not None) and (second_hit is not None) and (first_intersection is not None) and (first_intersection >= first_hit):
-            missed_intersections = self.draw_count_intersection_miss_between(first_hit, second_hit)
-            if missed_intersections <= intersection_skip_limit:
-                for idx in range(0, first_hit):
-                    self.node_hit_assumed[self.section_node_list[idx]] = 1
+                if (missed_intersections is not None) and (missed_intersections <= intersection_skip_limit):
+                    for idx in range(prev_hit+1, next_hit):
+                        self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
                     
-        # Assume hits after last hit if there are no further intersections (edge of map)
-        # and there were continuous hits assumed to that point
-        last_hit          = self.draw_find_prev_hit(len(self.section_node_list))
-        second_last_hit   = self.draw_find_prev_hit(last_hit)
-        last_intersection = self.draw_find_prev_intersection(len(self.section_node_list))
+                prev_hit = next_hit
+                next_hit = self.draw_find_next_hit(next_hit)
+            
         
-        if (last_hit is not None) and (second_last_hit is not None) and (last_intersection is not None) and (last_intersection <= last_hit):
-            missed_intersections = self.draw_count_intersection_miss_between(second_last_hit, last_hit)
-            if missed_intersections <= intersection_skip_limit:
-                for idx in range(last_hit+1, len(self.section_node_list)):
-                    self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
+        # Infer ends if there are no prior intersections
+        if infer_ends:
+            # Assume hits before first hit if there are no prior intersections (edge of map)
+            # and there were continuous hits assumed to that point
+            first_hit          = self.draw_find_next_hit(-1)
+            second_hit         = self.draw_find_next_hit(first_hit)
+            first_intersection = self.draw_find_next_intersection(-1)
+        
+            if (first_hit is not None) and (second_hit is not None) and (first_intersection is not None) and (first_intersection >= first_hit):
+                missed_intersections = self.draw_count_intersection_miss_between(first_hit, second_hit)
+                if missed_intersections <= intersection_skip_limit:
+                    for idx in range(0, first_hit):
+                        self.node_hit_assumed[self.section_node_list[idx]] = 1
+                    
+            # Assume hits after last hit if there are no further intersections (edge of map)
+            # and there were continuous hits assumed to that point
+            last_hit          = self.draw_find_prev_hit(len(self.section_node_list))
+            second_last_hit   = self.draw_find_prev_hit(last_hit)
+            last_intersection = self.draw_find_prev_intersection(len(self.section_node_list))
+        
+            if (last_hit is not None) and (second_last_hit is not None) and (last_intersection is not None) and (last_intersection <= last_hit):
+                missed_intersections = self.draw_count_intersection_miss_between(second_last_hit, last_hit)
+                if missed_intersections <= intersection_skip_limit:
+                    for idx in range(last_hit+1, len(self.section_node_list)):
+                        self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
                 
         # Output the conclusion
         if verbose:
             for idx, node_id in enumerate(self.section_node_list):       
-                print('{0:12s} {1:3d} => {2:d} {3:d} {4:d} {5:.6f}, {6:.6f}'.format(
+                print('{0:12s} {1:3d} => {2:d} {3:d} {4:d} {5:d} {6:.6f}, {7:.6f}'.format(
                     node_id,
                     idx,
                     self.node_is_intersection[node_id],
                     self.node_hit_detected[node_id],
                     self.node_hit_assumed[node_id],
+                    self.node_tagged[node_id],
                     self.node_coords[node_id][0],
                     self.node_coords[node_id][1]
                 ))
@@ -750,19 +756,31 @@ class osm_walker(object):
                 
 
     def draw_way_segment_features(self, way_id_start, mode):
+        section_node_list = self.linked_way_sections_all[way_id_start]
+        
         features = []
         
         coordinates_list_list = []
         
         coordinates_open = False
         coordinates      = []
-        
-        for idx in range(0, len(self.section_node_list)):
-            node_id = self.section_node_list[idx]
+                
+        for idx in range(0, len(section_node_list)):
+            node_id = section_node_list[idx]
             
             hit = self.node_hit_detected[node_id] + self.node_hit_assumed[node_id]
             tag = self.node_tagged[node_id]
             
+            # Is this node tagged as a cycleway in any way that is part of this segment?
+            # Check each way in the segment...
+            
+            #tag = 0
+            #for way_id_part in self.linked_way_sections[way_id_start]:                
+            #    # where the node is linked to that way...
+            #    if way_id_part in self.way_ids_per_node[node_id]:
+            #        if self.way_is_cycleway[way_id_part]:
+            #            tag = 1
+                
             if hit and tag:
                 both = 1
             else:
@@ -892,12 +910,7 @@ class osm_walker(object):
         
         print('{0:s} [{1:s}] {2:s} {3:s} -> {4:s} {5:s}'.format(way_id, way_name, way_start, str(way_start_coords), way_end, str(way_end_coords)))
         
-    
-    def compare_osm_cycleway_vs_detections(self, locality_name, output_geojson_dir, intersection_skip_limit=1, verbose=False):
-        # Process each linked way segment
-        for way_id_start in self.linked_way_sections.keys():
-            # For each way in linked way segment
-            
-            # Is the way a cycleway?  If so, add it to the features
-            print('help')
+    #def dump_way_segment(self, way_id_start):
+        
+        
     
