@@ -15,6 +15,11 @@ import xml.dom.minidom
 
 from geographiclib.geodesic import Geodesic
 
+import geojson
+from geojson import Feature, FeatureCollection, dump
+
+from geopy.distance import geodesic
+
 
 class osm_walker(object):
     '''
@@ -62,6 +67,7 @@ class osm_walker(object):
         self.tagged_features             = [] # Features we are building to draw on a map - cycleway tagged routes
         self.detected_features           = [] # Features we are building to draw on a map - detected routes
         self.both_features               = []
+        self.either_features             = []
         self.tagged_only_features        = []
         self.detected_only_features      = []
                 
@@ -635,8 +641,17 @@ class osm_walker(object):
         self.write_geojson(name, geojson_directory, 'hit',      self.detected_features)
         self.write_geojson(name, geojson_directory, 'tag',      self.tagged_features)
         self.write_geojson(name, geojson_directory, 'both',     self.both_features)
+        self.write_geojson(name, geojson_directory, 'either',   self.either_features)
         self.write_geojson(name, geojson_directory, 'hit_only', self.detected_only_features)
         self.write_geojson(name, geojson_directory, 'tag_only', self.tagged_only_features)
+        
+        # Compare distances
+        for part in ['hit', 'tag', 'both', 'either', 'hit_only', 'tag_only']:
+            geojson_filename = os.path.join(geojson_directory, part + '.geojson')
+            
+            distance = osm_walker.geojson_distance(geojson_filename)
+            
+            print('{0:8s}: Total distance {1:10.2f}m'.format(part, distance))
         
         
     def write_geojson(self, name, geojson_directory, mode, features):
@@ -751,6 +766,7 @@ class osm_walker(object):
         self.detected_features      = self.detected_features      + self.draw_way_segment_features(way_id_start, 'hit')
         self.tagged_features        = self.tagged_features        + self.draw_way_segment_features(way_id_start, 'tag')
         self.both_features          = self.both_features          + self.draw_way_segment_features(way_id_start, 'both')
+        self.either_features        = self.either_features        + self.draw_way_segment_features(way_id_start, 'either')
         self.detected_only_features = self.detected_only_features + self.draw_way_segment_features(way_id_start, 'hit_only')
         self.tagged_only_features   = self.tagged_only_features   + self.draw_way_segment_features(way_id_start, 'tag_only')   
                 
@@ -796,11 +812,18 @@ class osm_walker(object):
             else:
                 tag_only = 0
                 
+            if hit or tag:
+                either = 1
+            else:
+                either = 0
+                
             if mode == 'hit' and hit:
                 pen_down = 1
             elif mode == 'tag' and tag:
                 pen_down = 1
             elif mode == 'both' and both:
+                pen_down = 1
+            elif mode == 'either' and either:
                 pen_down = 1
             elif mode == 'hit_only' and hit_only:
                 pen_down = 1
@@ -910,7 +933,29 @@ class osm_walker(object):
         
         print('{0:s} [{1:s}] {2:s} {3:s} -> {4:s} {5:s}'.format(way_id, way_name, way_start, str(way_start_coords), way_end, str(way_end_coords)))
         
-    #def dump_way_segment(self, way_id_start):
+
+    @staticmethod
+    def geojson_distance(filename, verbose=False):
+        with open(filename) as json_file:
+            gj = geojson.load(json_file)
+
+        total_distance = 0
+
+        for feature in gj['features']:
+            geom = feature['geometry']
+            coordinates = geom['coordinates']
+    
+            for i in range(1, len(coordinates)):
+                coord_a = coordinates[i-1]
+                coord_b = coordinates[i]
+        
+                distance = geodesic((coord_a[1], coord_a[0]), (coord_b[1], coord_b[0])).m
+                if verbose:
+                    print('{0:f}, {1:f} -> {2:f}, {3:f} = {3:f}'.format(coord_a[1], coord_a[0], coord_b[1], coord_b[0], distance))
+        
+                total_distance += distance
+
+        return total_distance
         
         
     
