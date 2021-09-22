@@ -35,27 +35,36 @@ class osm_walker(object):
         '''
 
         # Cache ways in dict by name
-        self.ways_by_name            = {} # Dictionary giving, for each way name, a list of ways
-        self.ways_by_id              = {} # Dictionary to look up the way details by the way id
-        self.way_names_by_id         = {} # Dictionary to look up the way name by the way id
-        self.way_names_per_node      = {} # Dictionary giving, for each node, the list of way NAMEs attached to the node
-        self.way_ids_per_node        = {} # Dictionary giving, for each node, the list of way IDs attached to the node
-        self.way_ends_per_node       = {} # Dictionary giving, for each node, the list of way IDs that start or end with the node
-        self.nodes                   = {} # Dictionary giving node objects by node id
+        self.ways_by_name                = {} # Dictionary giving, for each way name, a list of ways
+        self.ways_by_id                  = {} # Dictionary to look up the way details by the way id
+        self.way_names_by_id             = {} # Dictionary to look up the way name by the way id
+        self.way_starts                  = {} # Record the start node for each way
+        self.way_ends                    = {} # Record the way end for each way
+        self.way_is_cycleway             = {} # Record whether a way is tagged as a cycleway or not
         
-        self.node_coords             = {} # Dictionary giving [lat, lon] by node_id
+        self.way_names_per_node          = {} # Dictionary giving, for each node, the list of way NAMEs attached to the node
+        self.way_ids_per_node            = {} # Dictionary giving, for each node, the list of way IDs attached to the node
+        self.way_ends_per_node           = {} # Dictionary giving, for each node, the list of way IDs that start or end with the node
+        self.nodes                       = {} # Dictionary giving node objects by node id
         
-        self.way_node_ids            = {} # Dictionary giving a list of node_ids (in order) for each way, by way_id
+        self.node_coords                 = {} # Dictionary giving [lat, lon] by node_id
         
-        self.linked_way_sections     = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
-        self.linked_way_sections_all = {} # Dictionary giving ways that have been re-connected by name, list of ALL node_ids in order
+        self.way_node_ids                = {} # Dictionary giving a list of node_ids (in order) for each way, by way_id
         
-        self.detection_hits          = {} # Dictionary giving detection hits from a detection log
+        self.linked_way_sections         = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
+        self.linked_way_sections_all     = {} # Dictionary giving ways that have been re-connected by name, list of ALL node_ids in order
+        self.linked_way_sections_cwy     = {} # Dictionary to if any way_id linked to the node in self.linked_way_sections_all is tagged as cycleway
         
-        self.unused_way_ids          = [] # Keep track of any way IDs we have not yet linked to a way segment, to make sure we get them all
+        self.detection_hits              = {} # Dictionary giving detection hits from a detection log
         
-        self.features                = [] # Features we are building to draw on a map
+        self.unused_way_ids              = [] # Keep track of any way IDs we have not yet linked to a way segment, to make sure we get them all
         
+        self.tagged_features             = [] # Features we are building to draw on a map - cycleway tagged routes
+        self.detected_features           = [] # Features we are building to draw on a map - detected routes
+        self.both_features               = []
+        self.tagged_only_features        = []
+        self.detected_only_features      = []
+               
         
         # Load the main XML file into memory
         # This assumes that we have reduced the OpenStreetMap data down to a small enough locality
@@ -70,6 +79,7 @@ class osm_walker(object):
             doc_margin = xml.dom.minidom.parse(filename_margin)
 
             self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
+            self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
 
 
     def process_osm_xml(self, doc, intersections_only=False, verbose=True):
@@ -80,6 +90,8 @@ class osm_walker(object):
         for way in ways_xml:
             # Get the ID for this way
             way_id = way.getAttribute('id')
+            
+            is_cycleway = False
                             
             # Find the name for the way based on a 'tag' element where k='name'
             tags = way.getElementsByTagName('tag')
@@ -110,6 +122,12 @@ class osm_walker(object):
                 # Skip natural features like cliff, coastline, wood, beach, water, bay
                 elif k == 'natural':
                     way_name = None
+                    
+                # Identify cycleways
+                if k.upper().startswith('CYCLEWAY'):
+                    v = tag.getAttribute('v')
+                    if v.upper() not in ['NO']:
+                        is_cycleway = True
             
             if way_name is not None:
                 # Remember the name for this way, so we don't have the parse the whole way again later
@@ -126,10 +144,13 @@ class osm_walker(object):
                     # We only add ways that have a name, implicitly excluding "natural" ways such as coastline
                     self.ways_by_id[way_id] = way
     
+                    # Record whether this was tagged as a cycleway or not
+                    self.way_is_cycleway[way_id] = is_cycleway
+                    
                 # Record the association with this way against the node
                 # We can tell that an intersection is a node associated with multiple ways
                 node_refs = way.getElementsByTagName('nd')
-                for node_ref in node_refs:
+                for idx, node_ref in enumerate(node_refs):
                     ref = node_ref.getAttribute('ref')
                     if ref in self.way_names_per_node:
                         if way_name not in self.way_names_per_node[ref]:
@@ -147,6 +168,11 @@ class osm_walker(object):
                         self.way_node_ids[way_id].append(ref)
                     else:
                         self.way_node_ids[way_id] = [ref]
+                        
+                    if idx == 0:
+                        self.way_starts[way_id] = ref
+                    if idx == len(node_refs) - 1:
+                        self.way_ends[way_id] = ref
                 
                 node_ends = [node_refs[0], node_refs[-1]]
                 for node_ref in node_ends:
@@ -437,8 +463,9 @@ class osm_walker(object):
         # order that appears sensible to a human
     
         # Reset linkages between ways of same name
-        self.linked_way_sections     = {}
-        self.linked_way_sections_all = {}
+        self.linked_way_sections      = {}
+        self.linked_way_sections_all  = {}
+        self.linked_way_sections_cway = {}
         
         # Iterate through each distinct way name (including generic ways like "junction")
         for way_name in self.ways_by_name.keys():
@@ -465,10 +492,11 @@ class osm_walker(object):
                 # Process the next start way id
                 way_id = way_starts.pop()
                 
-                section = [way_id]
+                section     = [way_id]
                                         
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
+                section_cwy = []
                 
                 way         = self.ways_by_id[way_id]
                 node_refs   = way.getElementsByTagName('nd')
@@ -477,6 +505,7 @@ class osm_walker(object):
                     ref = node_ref.getAttribute('ref')
                     if ref not in section_all:
                         section_all.append(ref)
+                        section_cwy.append(self.way_is_cycleway[way_id])
                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -484,7 +513,7 @@ class osm_walker(object):
                 # Remove this way start from the list of ways we have not processed yet
                 self.unused_way_ids.remove(way_id)
             
-                # Recursively Walk down adjoining ways in order
+                # Recursively walk down adjoining ways in order
                 next_way_id = self.find_next_way(way_id, match_name=True)
             
                 while next_way_id:
@@ -499,6 +528,7 @@ class osm_walker(object):
                         ref = node_ref.getAttribute('ref')
                         if ref not in section_all:
                             section_all.append(ref)
+                            section_cwy.append(self.way_is_cycleway[way_id])
                                            
                     if verbose:
                         print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -510,7 +540,8 @@ class osm_walker(object):
                 
                     next_way_id = self.find_next_way(way_id, match_name=True)
                 
-                self.linked_way_sections_all[way_id] = section_all                    
+                self.linked_way_sections_all[way_id] = section_all
+                self.linked_way_sections_cwy[way_id] = section_cwy
                 self.linked_way_sections[way_id]     = section
                 
                 if verbose:
@@ -526,6 +557,7 @@ class osm_walker(object):
             
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
+                section_cwy = []
                 
                 way         = self.ways_by_id[way_id]
                 node_refs   = way.getElementsByTagName('nd')
@@ -534,6 +566,7 @@ class osm_walker(object):
                     ref = node_ref.getAttribute('ref')
                     if ref not in section_all:
                         section_all.append(ref)
+                        section_cwy.append(self.way_is_cycleway[way_id])
                                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -553,6 +586,7 @@ class osm_walker(object):
                         ref = node_ref.getAttribute('ref')
                         if ref not in section_all:
                             section_all.append(ref)
+                            section_cwy.append(self.way_is_cycleway[way_id])
                                             
                     if verbose:
                         print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -562,7 +596,8 @@ class osm_walker(object):
                 
                     next_way_id = self.find_next_way(way_id, match_name=False)
                 
-                self.linked_way_sections_all[way_id] = section_all              
+                self.linked_way_sections_all[way_id] = section_all
+                self.linked_way_sections_cwy[way_id] = section_cwy
                 self.linked_way_sections[way_id]     = section
     
     
@@ -586,33 +621,54 @@ class osm_walker(object):
             return False
         
         
-    def write_detected_geojson(self, name, detected_geojson_filename, intersection_skip_limit=1, verbose=False):
-        self.features = []
+    def write_geojsons(self, name, geojson_directory, intersection_skip_limit=1, verbose=False):
+        self.detected_features      = []
+        self.tagged_features        = []
+        self.both_featurtes         = []
+        self.detected_only_features = []
+        self.tagged_only_features   = []
         
         for way_id_start in self.linked_way_sections.keys():
             self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, verbose=verbose)
         
+        self.write_geojson(name, geojson_directory, 'hit',      self.detected_features)
+        self.write_geojson(name, geojson_directory, 'tag',      self.tagged_features)
+        self.write_geojson(name, geojson_directory, 'both',     self.both_features)
+        self.write_geojson(name, geojson_directory, 'hit_only', self.detected_only_features)
+        self.write_geojson(name, geojson_directory, 'tag_only', self.tagged_only_features)
+        
+        
+    def write_geojson(self, name, geojson_directory, mode, features):
+        print('Writing ' + mode + ', feature count: ' + str(len(features)))
+        
+        label = '{0:s}_{1:s}'.format(name, mode)
+        
+        geojson_filename = os.path.join(geojson_directory, mode + '.geojson')
+        
         featurecollection = {
             'type':     'FeatureCollection',
-            'name':     name,
-            'features': self.features
+            'name':     label,
+            'features': features
         }
         
-        print('Writing to: ' + detected_geojson_filename)
-        with open(detected_geojson_filename, 'w') as outfile:
+        print('Writing to: ' + geojson_filename)
+        with open(geojson_filename, 'w') as outfile:
             json.dump(featurecollection, outfile, indent=4)
             outfile.close()
     
     
     def draw_way_segment(self, way_id_start, intersection_skip_limit=1, verbose=False):
         self.section_node_list = self.linked_way_sections_all[way_id_start]
+        self.section_node_cwys = self.linked_way_sections_cwy[way_id_start]
         
         self.node_is_intersection = {}
         self.node_hit_detected    = {}
         self.node_hit_assumed     = {}
+        self.node_tagged          = {}
         
         # Determine whether each node is an intersection, whether a hit was detected
         for idx, node_id in enumerate(self.section_node_list):
+            
             #if (self.is_intersection_node(node_id)) or (idx == 0) or (idx == len(self.section_node_list) - 1):
             if self.is_intersection_node(node_id):
                 self.node_is_intersection[node_id] = 1
@@ -625,9 +681,15 @@ class osm_walker(object):
                 self.node_hit_detected[node_id] = 1
             else:
                 self.node_hit_detected[node_id] = 0
+                
+            if self.section_node_cwys[idx]:
+                self.node_tagged[node_id] = 1
+            elif node_id not in self.node_tagged:
+                self.node_tagged[node_id] = 0
+                
+            self.node_hit_assumed[node_id] = 0
             
-            self.node_hit_assumed[node_id]  = 0
-        
+            
         # Infer between hits if there aren't too many missed intersections
         prev_hit = self.draw_find_next_hit(-1)
         next_hit = self.draw_find_next_hit(prev_hit)
@@ -665,7 +727,7 @@ class osm_walker(object):
             if missed_intersections <= intersection_skip_limit:
                 for idx in range(last_hit+1, len(self.section_node_list)):
                     self.node_hit_assumed[self.section_node_list[idx]] = 1 + missed_intersections
-           
+                
         # Output the conclusion
         if verbose:
             for idx, node_id in enumerate(self.section_node_list):       
@@ -679,9 +741,18 @@ class osm_walker(object):
                     self.node_coords[node_id][1]
                 ))
             
-        # Draw geojson features
-        # Gather list of list of coordinates -- each list of coordinates represents an unbroken path to draw
-        self.coordinates_list_list = []
+        # Generate geographic feature lists for each map
+        self.detected_features      = self.detected_features      + self.draw_way_segment_features(way_id_start, 'hit')
+        self.tagged_features        = self.tagged_features        + self.draw_way_segment_features(way_id_start, 'tag')
+        self.both_features          = self.both_features          + self.draw_way_segment_features(way_id_start, 'both')
+        self.detected_only_features = self.detected_only_features + self.draw_way_segment_features(way_id_start, 'hit_only')
+        self.tagged_only_features   = self.tagged_only_features   + self.draw_way_segment_features(way_id_start, 'tag_only')   
+                
+
+    def draw_way_segment_features(self, way_id_start, mode):
+        features = []
+        
+        coordinates_list_list = []
         
         coordinates_open = False
         coordinates      = []
@@ -690,42 +761,72 @@ class osm_walker(object):
             node_id = self.section_node_list[idx]
             
             hit = self.node_hit_detected[node_id] + self.node_hit_assumed[node_id]
+            tag = self.node_tagged[node_id]
             
-            if hit:
+            if hit and tag:
+                both = 1
+            else:
+                both = 0
+                
+            if hit and not tag:
+                hit_only = 1
+            else:
+                hit_only = 0
+                
+            if tag and not hit:
+                tag_only = 1
+            else:
+                tag_only = 0
+                
+            if mode == 'hit' and hit:
+                pen_down = 1
+            elif mode == 'tag' and tag:
+                pen_down = 1
+            elif mode == 'both' and both:
+                pen_down = 1
+            elif mode == 'hit_only' and hit_only:
+                pen_down = 1
+            elif mode == 'tag_only' and tag_only:
+                pen_down = 1
+            else:
+                pen_down = 0
+                
+            if pen_down:
                 coordinates_open = True
                 coordinates      = coordinates + [[self.node_coords[node_id][1], self.node_coords[node_id][0]]]
             elif coordinates_open:
                 if len(coordinates) > 1:
-                    self.coordinates_list_list = self.coordinates_list_list + [coordinates]
-                coordinates_open           = False
-                coordinates                = []
-                
+                    coordinates_list_list = coordinates_list_list + [coordinates]
+                coordinates_open = False
+                coordinates      = []
+                      
         if coordinates_open:
             if len(coordinates) > 1:
-                self.coordinates_list_list = self.coordinates_list_list + [coordinates]
-            coordinates_open           = False
-            coordinates                = []
+                coordinates_list_list = coordinates_list_list + [coordinates]
+            coordinates_open = False
+            coordinates      = []
                 
-        if len(self.coordinates_list_list) <= 0:
-            return None
-                
-        for i in range(0, len(self.coordinates_list_list)):
-            feature = {
-                'type': 'Feature',
-                'properties': {
-                    'id': (str(way_id_start) + '-' + str(i)),
-                    'name': (str(way_id_start) + '-' + str(i) + '-' + str(len(self.coordinates_list_list[i]))),
-                    'version': '1'
-                },
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': self.coordinates_list_list[i]
+        if len(coordinates_list_list) > 0:               
+            for i in range(0, len(coordinates_list_list)):
+                feature = {
+                    'type': 'Feature',
+                    'properties': {
+                        'id': (mode + ' ' + str(way_id_start) + '-' + str(i)),
+                        'name': (mode + ' ' + str(way_id_start) + '-' + str(i) + '-' + str(len(coordinates_list_list[i]))),
+                        'version': '1'
+                    },
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': coordinates_list_list[i]
+                    }
                 }
-            }
             
-            self.features.append(feature)
+                
+                features.append(feature)
         
-    
+        return features
+       
+       
     def draw_find_next_intersection(self, idx):        
         if idx is None:
             return None
@@ -757,8 +858,7 @@ class osm_walker(object):
             if self.node_hit_detected[self.section_node_list[idx]]:
                 return idx
             idx += 1
-        return None
-        
+        return None      
             
     def draw_find_prev_hit(self, idx):        
         if idx is None:
@@ -782,7 +882,22 @@ class osm_walker(object):
                 intersection_miss_between += 1
                 
         return intersection_miss_between
+                     
+    def dump_way(self, way_id):
+        way_name = self.way_names_by_id[way_id]
+        way_start = self.way_starts[way_id]
+        way_end   = self.way_ends[way_id]
+        way_start_coords = self.node_coords[way_start]
+        way_end_coords   = self.node_coords[way_end]
         
-                
+        print('{0:s} [{1:s}] {2:s} {3:s} -> {4:s} {5:s}'.format(way_id, way_name, way_start, str(way_start_coords), way_end, str(way_end_coords)))
+        
     
+    def compare_osm_cycleway_vs_detections(self, locality_name, output_geojson_dir, intersection_skip_limit=1, verbose=False):
+        # Process each linked way segment
+        for way_id_start in self.linked_way_sections.keys():
+            # For each way in linked way segment
+            
+            # Is the way a cycleway?  If so, add it to the features
+            print('help')
     
