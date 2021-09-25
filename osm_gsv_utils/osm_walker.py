@@ -22,6 +22,8 @@ from geopy.distance import geodesic
 
 from shapely.geometry import Point, LineString
 
+from tqdm.notebook import tqdm
+
 
 class osm_walker(object):
     '''
@@ -621,7 +623,7 @@ class osm_walker(object):
                 self.linked_linestrings[way_id]      = LineString(coord_list)
     
     
-    def load_detection_log(self, filename):
+    def load_detection_log(self, filename):        
         df = pd.read_csv(filename)
         
         for index, row in df.iterrows():
@@ -633,7 +635,54 @@ class osm_walker(object):
             else:
                 self.detection_hits[key] = [[row['offset_id'], row['score']]]
                 
- 
+
+    def snap_detection_log(self, filename_in, filename_out):
+        df = pd.read_csv(filename_in)
+        
+        tqdm.pandas()
+        
+        output_file = open(filename_out, 'w')
+        output_file.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3,way_name\n')
+                        
+        df.progress_apply(lambda row: self.snap_row(
+            output_file,
+            row['lat'],
+            row['lon'],
+            row['bearing'],
+            row['heading'],
+            row['score'],
+            row['bbox_0'],
+            row['bbox_1'],
+            row['bbox_2'],
+            row['bbox_3']),
+            axis=1
+        )
+
+    def snap_row(self, output, lat, lon, bearing, heading, score, bbox_0, bbox_1, bbox_2, bbox_3):
+        p = Point(lat, lon)
+        
+        way_id_start, node_id, distance = self.find_nearest_intersection(p)
+        
+        way_name = self.way_names_by_id[way_id_start]
+            
+        output.write('{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f},{13:s}\n'.format(
+                lat,
+                lon,
+                int(bearing),
+                int(heading),
+                int(way_id_start),
+                int(way_id_start),
+                int(node_id),
+                distance,
+                score,
+                bbox_0,
+                bbox_1,
+                bbox_2,
+                bbox_3,
+                way_name
+            )
+        )
+   
     def is_intersection_node(self, node_id):
         if len(self.way_names_per_node[node_id]) > 1:
             return True
@@ -881,7 +930,7 @@ class osm_walker(object):
         
         return features
        
-       
+    
     def draw_find_next_intersection(self, idx):        
         if idx is None:
             return None
@@ -892,7 +941,8 @@ class osm_walker(object):
                 return idx
             idx += 1
         return None
-            
+       
+       
     def draw_find_prev_intersection(self, idx):        
         if idx is None:
             return None
@@ -904,6 +954,7 @@ class osm_walker(object):
             idx -= 1
         return None
 
+
     def draw_find_next_hit(self, idx):        
         if idx is None:
             return None
@@ -914,7 +965,8 @@ class osm_walker(object):
                 return idx
             idx += 1
         return None      
-            
+        
+        
     def draw_find_prev_hit(self, idx):        
         if idx is None:
             return None
@@ -925,7 +977,8 @@ class osm_walker(object):
                 return idx   
             idx -= 1
         return None
-            
+      
+      
     def draw_count_intersection_miss_between(self, prev_hit, next_hit):       
         if prev_hit is None or next_hit is None:
             return None
@@ -937,7 +990,8 @@ class osm_walker(object):
                 intersection_miss_between += 1
                 
         return intersection_miss_between
-                     
+       
+       
     def dump_way(self, way_id):
         way_name = self.way_names_by_id[way_id]
         way_start = self.way_starts[way_id]
@@ -973,7 +1027,6 @@ class osm_walker(object):
         
         
     def find_nearest_way_segment(self, point, verbose=False):
-        
         closest_way      = None
         closest_distance = None
 
@@ -981,12 +1034,73 @@ class osm_walker(object):
             self.link_way_sections()
             
         for way_id in self.linked_linestrings.keys():
-
-            distance = point.distance(self.linked_linestrings[way_id])
+            # Limit search to named ways
+            way_name = self.way_names_by_id[way_id]
             
-            if closest_distance is None or distance < closest_distance:
-                closest_way      = way_id
-                closest_distance = distance
-                
+            if way_name not in ['Unnamed', 'PATH', 'PEDESTRIAN', 'RESIDENTIAL', 'ROUNDABOUT', 'SERVICE', 'TERTIARY_LINK', 'TRACK', 'TRUNK', 'TRUNK_LINK']:
+                distance = point.distance(self.linked_linestrings[way_id])
+            
+                if closest_distance is None or distance < closest_distance:
+                    closest_way      = way_id
+                    closest_distance = distance # degress, qualitative use
+                    
         return closest_way
     
+    
+    def find_distance_to_node(self, node_id, point):
+        node_coords = self.node_coords[node_id]
+        point_coords = point.coords[0]
+        
+        distance = geodesic((node_coords[0], node_coords[1]), (point_coords[0], point_coords[1])).m
+        
+        return distance # metres
+    
+    
+    def find_nearest_intersection(self, point, verbose=False):
+        # First, find the nearest way
+        way_id_start = self.find_nearest_way_segment(point, verbose=verbose)
+        
+        if way_id_start is None:
+            return None
+            
+        # Next, find the nearest node from the list of intersection nodes on the way
+        closest_node_id  = None
+        closest_distance = None
+        
+        if verbose:
+            print('Checking way [{0:s}] having nodes [{1:d}]'.format(way_id_start, len(self.linked_way_sections_all[way_id_start])))
+            
+        for node_id in self.linked_way_sections_all[way_id_start]:
+            # Limit search to intersections
+            if self.is_intersection_node(node_id):
+                if verbose:
+                    print('Checking intersection {0:s}'.format(node_id))
+                    
+                # Calculate distance (in degrees)
+                distance = self.find_distance_to_node(node_id, point)
+                
+                if closest_distance is None or distance < closest_distance:
+                    closest_node_id  = node_id
+                    closest_distance = distance
+            else:
+                if verbose:
+                    print('Skipping non-intersection {0:s}'.format(node_id))
+        
+        if closest_node_id is not None:
+            return way_id_start, closest_node_id, closest_distance
+            
+        # Resort to finding a node that is not an intersection
+        for node_id in self.linked_way_sections_all[way_id_start]:
+            if not self.is_intersection_node(node_id):
+                if verbose:
+                    print('Checking non-intersection {0:s}'.format(node_id))
+                    
+                # Calculate distance (in degrees)
+                distance = self.find_distance_to_node(node_id, point)
+                
+                if closest_distance is None or distance < closest_distance:
+                    closest_node_id  = node_id
+                    closest_distance = distance
+            
+        return way_id_start, closest_node_id, closest_distance
+        

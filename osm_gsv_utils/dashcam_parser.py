@@ -9,7 +9,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-import pynmea2
+from pynmeagps import NMEAReader
 
 from datetime import datetime, date
 
@@ -183,24 +183,25 @@ class dashcam_parser(object):
             if line.startswith('$GPGGA') or line.startswith('$GPRMC'):
                 # Load generic fields that are common to both record types
                 try:
-                    msg = pynmea2.parse(line)
+                    msg = NMEAReader.parse(line)
                 
                     # How many seconds since the first timestamp for the file is this?
                     if first_timestamp is None:
-                        first_timestamp = msg.timestamp
+                        first_timestamp = msg.time
                 
-                    if msg.timestamp >= first_timestamp:
-                        ts_offset = (datetime.combine(date.today(), msg.timestamp) - datetime.combine(date.today(), first_timestamp)).seconds
+                    if msg.time >= first_timestamp:
+                        ts_offset = (datetime.combine(date.today(), msg.time) - datetime.combine(date.today(), first_timestamp)).seconds
                     else:
-                        ts_offset = (datetime.combine(date.today(), msg.timestamp) - datetime.combine(date.today() - datetime.timedelta(days=1), first_timestamp)).seconds
+                        ts_offset = (datetime.combine(date.today(), msg.time) - datetime.combine(date.today() - datetime.timedelta(days=1), first_timestamp)).seconds
                 
-                    self.ts_coords[ts_offset] = [float(msg.lat)/100, float(msg.lon)/100]
+                       
+                    self.ts_coords[ts_offset] = [float(msg.lat), float(msg.lon)]
 
                     # Fetch additional fields that are specific to one record type
                     if line.startswith('$GPGGA'):
-                        self.ts_altitude[ts_offset] = msg.altitude
+                        self.ts_altitude[ts_offset] = msg.alt
                     elif line.startswith('$GPRMC'):
-                        self.ts_heading[ts_offset] = msg.true_course
+                        self.ts_heading[ts_offset] = msg.cog
                         
                     last_good_offset = ts_offset
                         

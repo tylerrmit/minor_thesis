@@ -180,7 +180,7 @@ class tf2_model_wrapper(object):
                     for idx, score in enumerate(detections['detection_scores']):
                         if score >= min_score:
                             detection_log.write(
-                                '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f}\n'.format(
+                                '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f}\n'.format(
                                     lat,
                                     lon,
                                     bearing,
