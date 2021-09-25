@@ -1040,10 +1040,16 @@ class osm_walker(object):
             if way_name not in ['Unnamed', 'PATH', 'PEDESTRIAN', 'RESIDENTIAL', 'ROUNDABOUT', 'SERVICE', 'TERTIARY_LINK', 'TRACK', 'TRUNK', 'TRUNK_LINK']:
                 distance = point.distance(self.linked_linestrings[way_id])
             
+                if verbose:
+                    print('Distance {0:s} {1:s} {2:f}'.format(way_id, way_name, distance))
+                    
                 if closest_distance is None or distance < closest_distance:
                     closest_way      = way_id
                     closest_distance = distance # degress, qualitative use
-                    
+        
+        if verbose:
+            print('Closest {0:s} {1:s} {2:f}'.format(closest_way, self.way_names_by_id[closest_way], closest_distance))
+            
         return closest_way
     
     
@@ -1068,7 +1074,11 @@ class osm_walker(object):
         closest_distance = None
         
         if verbose:
-            print('Checking way [{0:s}] having nodes [{1:d}]'.format(way_id_start, len(self.linked_way_sections_all[way_id_start])))
+            print('Checking way [{0:s} {1:s}] having nodes [{2:d}]'.format(
+                way_id_start, 
+                self.way_names_by_id[way_id_start], 
+                len(self.linked_way_sections_all[way_id_start])
+            ))
             
         for node_id in self.linked_way_sections_all[way_id_start]:
             # Limit search to intersections
