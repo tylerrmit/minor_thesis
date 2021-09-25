@@ -100,7 +100,7 @@ class tf2_model_wrapper(object):
         
         return detections
 
-    def apply_model(self, lat, lon, bearing, way_start_id, way_id, node_id, offset_id, heading_offsets=[0,90,180,270], min_score=0.5, write=True, display=False, log=False, verbose=False):
+    def apply_model(self, lat, lon, bearing, way_start_id, way_id, node_id, offset_id, filename=None, heading_offsets=[0,90,180,270], min_score=0.5, write=True, display=False, log=False, verbose=False):
         for heading_offset in heading_offsets:
             heading = int(round(bearing + heading_offset))
             if heading > 360:
@@ -115,13 +115,17 @@ class tf2_model_wrapper(object):
                 lon_str = 'e{0:.6f}'.format(abs(lon))
             else:
                 lon_str = 'w{0:.6f}'.format(abs(lon))
+            
+            if filename is None:
+                image_filename = os.path.join(
+                    '{0:.6f}'.format(lat),
+                    '{0:.6f}'.format(lon),
+                    str(int(heading)),
+                    'gsv_0.jpg'
+                )
+            else:
+                image_filename = filename
                 
-            image_filename = os.path.join(
-                '{0:.6f}'.format(lat),
-                '{0:.6f}'.format(lon),
-                str(int(heading)),
-                'gsv_0.jpg'
-            )
             output_filename = '{0:s}_{1:s}_{2:d}.jpg'.format(lat_str, lon_str, heading)
             image_path      = os.path.join(self.download_directory, image_filename)     
         
@@ -284,6 +288,65 @@ class tf2_model_wrapper(object):
                     row['way_id'],
                     row['node_id'],
                     row['offset_id'],
+                    min_score = min_score,
+                    write     = True,
+                    display   = False,
+                    log       = True,
+                    verbose   = verbose
+                )
+                
+        return detection_log_path
+
+    def process_split_dir(self, batch_filename, min_score=0.5, progress=False, verbose=False):
+        '''
+        Parameters
+        ----------
+        batch_filename : str
+            The name of a CSV file containing co-ordinates and bearings to download from Google Street View.
+            If the file has already been downloaded, it is skipped, to save costs.
+        '''
+        
+        # Reset existing detection log
+        detection_log_path = os.path.join(self.output_directory, 'detection_log.csv')
+        
+        if os.path.exists(detection_log_path):
+            os.remove(detection_log_path)
+            
+        # Iterate over every requested location in the batch
+        df = pd.read_csv(batch_filename)
+
+        if progress:
+            tqdm.pandas()   
+
+            df.progress_apply(lambda row: self.apply_model(
+                row['lat'],
+                row['lon'],
+                int(row['heading']),
+                0,
+                0,
+                0,
+                row['frame_num'],
+                filename  = row['filename'],
+                heading_offsets = [0],
+                min_score = min_score,
+                write     = True,
+                display   = False,
+                log       = True,
+                verbose   = verbose),
+                axis=1
+            )
+        else:
+            for index, row in df.iterrows():
+                self.apply_model(
+                    row['lat'],
+                    row['lon'],
+                    int(row['heading']),
+                    0,
+                    0,
+                    0,
+                    row['frame_num'],
+                    filename  = row['filename'],
+                    heading_offsets = [0],
                     min_score = min_score,
                     write     = True,
                     display   = False,

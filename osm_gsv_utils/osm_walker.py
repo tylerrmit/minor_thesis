@@ -20,6 +20,8 @@ from geojson import Feature, FeatureCollection, dump
 
 from geopy.distance import geodesic
 
+from shapely.geometry import Point, LineString
+
 
 class osm_walker(object):
     '''
@@ -59,6 +61,8 @@ class osm_walker(object):
         self.linked_way_sections         = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
         self.linked_way_sections_all     = {} # Dictionary giving ways that have been re-connected by name, list of ALL node_ids in order
         self.linked_way_sections_cwy     = {} # Dictionary to if any way_id linked to the node in self.linked_way_sections_all is tagged as cycleway
+        
+        self.linked_linestrings          = {} # Dictionary where linked ways are stored as shapely LineString objects
         
         self.detection_hits              = {} # Dictionary giving detection hits from a detection log
         
@@ -473,6 +477,8 @@ class osm_walker(object):
         self.linked_way_sections_all  = {}
         self.linked_way_sections_cway = {}
         
+        self.linked_linestrings       = {}
+        
         # Iterate through each distinct way name (including generic ways like "junction")
         for way_name in self.ways_by_name.keys():
             if verbose:
@@ -499,10 +505,11 @@ class osm_walker(object):
                 way_id = way_starts.pop()
                                 
                 section     = [way_id]
-                                        
+                                
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
                 section_cwy = []
+                coord_list  = []
                 
                 way         = self.ways_by_id[way_id]
                 node_refs   = way.getElementsByTagName('nd')
@@ -512,6 +519,8 @@ class osm_walker(object):
                     if ref not in section_all:
                         section_all.append(ref)
                         section_cwy.append(self.way_is_cycleway[way_id])
+                        these_coords = self.node_coords[ref]
+                        coord_list.append((these_coords[0], these_coords[1]))
                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -548,7 +557,8 @@ class osm_walker(object):
                 
                 self.linked_way_sections_all[way_id] = section_all
                 self.linked_way_sections_cwy[way_id] = section_cwy
-                self.linked_way_sections[way_id]     = section
+                self.linked_way_sections[way_id]     = section           
+                self.linked_linestrings[way_id]      = LineString(coord_list)
                 
                 if verbose:
                     print('section:     {0:3d} {1:s}'.format(len(section), str(section)))
@@ -564,6 +574,7 @@ class osm_walker(object):
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
                 section_cwy = []
+                coord_list  = []
                 
                 way         = self.ways_by_id[way_id]
                 node_refs   = way.getElementsByTagName('nd')
@@ -573,6 +584,8 @@ class osm_walker(object):
                     if ref not in section_all:
                         section_all.append(ref)
                         section_cwy.append(self.way_is_cycleway[way_id])
+                        these_coords = self.node_coords[ref]
+                        coord_list.append((these_coords[0], these_coords[1]))
                                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
@@ -605,6 +618,7 @@ class osm_walker(object):
                 self.linked_way_sections_all[way_id] = section_all
                 self.linked_way_sections_cwy[way_id] = section_cwy
                 self.linked_way_sections[way_id]     = section
+                self.linked_linestrings[way_id]      = LineString(coord_list)
     
     
     def load_detection_log(self, filename):
@@ -958,4 +972,21 @@ class osm_walker(object):
         return total_distance
         
         
+    def find_nearest_way_segment(self, point, verbose=False):
+        
+        closest_way      = None
+        closest_distance = None
+
+        if not self.linked_linestrings:
+            self.link_way_sections()
+            
+        for way_id in self.linked_linestrings.keys():
+
+            distance = point.distance(self.linked_linestrings[way_id])
+            
+            if closest_distance is None or distance < closest_distance:
+                closest_way      = way_id
+                closest_distance = distance
+                
+        return closest_way
     

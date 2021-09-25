@@ -1,0 +1,681 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "256397901",
+                "version": "1",
+                "timestamp": "2014-01-13T03:08:55Z",
+                "foot": "yes",
+                "source": "Bing",
+                "bicycle": "yes",
+                "highway": "cycleway",
+                "cycleway": "track"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0777893",
+                        "-38.2192031"
+                    ],
+                    [
+                        "145.077838",
+                        "-38.2193381"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "256397902",
+                "version": "3",
+                "timestamp": "2020-10-09T09:24:13Z",
+                "bicycle": "yes",
+                "cycleway": "track",
+                "foot": "yes",
+                "highway": "cycleway",
+                "source": "Bing"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.077838",
+                        "-38.2193381"
+                    ],
+                    [
+                        "145.0778491",
+                        "-38.2193693"
+                    ],
+                    [
+                        "145.0778552",
+                        "-38.2193865"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "256397903",
+                "version": "1",
+                "timestamp": "2014-01-13T03:08:56Z",
+                "foot": "yes",
+                "source": "Bing",
+                "bicycle": "yes",
+                "highway": "cycleway",
+                "cycleway": "track"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0674339",
+                        "-38.2230527"
+                    ],
+                    [
+                        "145.0673749",
+                        "-38.2229907"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "256397905",
+                "version": "1",
+                "timestamp": "2014-01-13T03:08:56Z",
+                "foot": "yes",
+                "source": "Bing",
+                "bicycle": "yes",
+                "highway": "cycleway",
+                "cycleway": "track"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0659659",
+                        "-38.2234132"
+                    ],
+                    [
+                        "145.0663805",
+                        "-38.2233572"
+                    ],
+                    [
+                        "145.0664448",
+                        "-38.2232293"
+                    ],
+                    [
+                        "145.0664681",
+                        "-38.2231788"
+                    ],
+                    [
+                        "145.0664881",
+                        "-38.2231401"
+                    ],
+                    [
+                        "145.066524",
+                        "-38.2230931"
+                    ],
+                    [
+                        "145.0665658",
+                        "-38.2230767"
+                    ],
+                    [
+                        "145.0669991",
+                        "-38.2231319"
+                    ],
+                    [
+                        "145.0670977",
+                        "-38.2231319"
+                    ],
+                    [
+                        "145.0672008",
+                        "-38.2231119"
+                    ],
+                    [
+                        "145.0672815",
+                        "-38.2230826"
+                    ],
+                    [
+                        "145.0673562",
+                        "-38.2230826"
+                    ],
+                    [
+                        "145.06741",
+                        "-38.223072"
+                    ],
+                    [
+                        "145.0674339",
+                        "-38.2230527"
+                    ],
+                    [
+                        "145.0675295",
+                        "-38.222984"
+                    ],
+                    [
+                        "145.067785",
+                        "-38.2228443"
+                    ],
+                    [
+                        "145.0682736",
+                        "-38.2225462"
+                    ],
+                    [
+                        "145.0685619",
+                        "-38.2223971"
+                    ],
+                    [
+                        "145.0689892",
+                        "-38.2221353"
+                    ],
+                    [
+                        "145.0691401",
+                        "-38.2220649"
+                    ],
+                    [
+                        "145.0692313",
+                        "-38.2219945"
+                    ],
+                    [
+                        "145.0694658",
+                        "-38.2218654"
+                    ],
+                    [
+                        "145.069799",
+                        "-38.2217128"
+                    ],
+                    [
+                        "145.0699708",
+                        "-38.2216189"
+                    ],
+                    [
+                        "145.070062",
+                        "-38.2215555"
+                    ],
+                    [
+                        "145.0702936",
+                        "-38.2214428"
+                    ],
+                    [
+                        "145.0704893",
+                        "-38.2213794"
+                    ],
+                    [
+                        "145.0706925",
+                        "-38.2213008"
+                    ],
+                    [
+                        "145.070815",
+                        "-38.2212421"
+                    ],
+                    [
+                        "145.0718549",
+                        "-38.2208324"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "454611636",
+                "version": "2",
+                "timestamp": "2020-08-22T09:47:51Z",
+                "bicycle": "yes",
+                "cycleway": "track",
+                "foot": "yes",
+                "highway": "footway"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0451729",
+                        "-38.2212522"
+                    ],
+                    [
+                        "145.0463109",
+                        "-38.2208503"
+                    ],
+                    [
+                        "145.0465211",
+                        "-38.2208434"
+                    ],
+                    [
+                        "145.0466384",
+                        "-38.2208503"
+                    ],
+                    [
+                        "145.0466637",
+                        "-38.2208635"
+                    ],
+                    [
+                        "145.0466924",
+                        "-38.2208852"
+                    ],
+                    [
+                        "145.0466963",
+                        "-38.2208978"
+                    ],
+                    [
+                        "145.0466692",
+                        "-38.2210464"
+                    ],
+                    [
+                        "145.0466945",
+                        "-38.2210736"
+                    ],
+                    [
+                        "145.0467383",
+                        "-38.2210723"
+                    ],
+                    [
+                        "145.0468947",
+                        "-38.2209814"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "454611637",
+                "version": "3",
+                "timestamp": "2020-08-22T09:47:51Z",
+                "bicycle": "yes",
+                "bridge": "yes",
+                "cycleway": "track",
+                "foot": "yes",
+                "highway": "footway",
+                "layer": "1",
+                "source": "Bing"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0468947",
+                        "-38.2209814"
+                    ],
+                    [
+                        "145.0469591",
+                        "-38.2208456"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "454611638",
+                "version": "2",
+                "timestamp": "2020-08-22T09:47:51Z",
+                "bicycle": "yes",
+                "cycleway": "track",
+                "foot": "yes",
+                "highway": "footway"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0469591",
+                        "-38.2208456"
+                    ],
+                    [
+                        "145.0469879",
+                        "-38.2207117"
+                    ],
+                    [
+                        "145.0470266",
+                        "-38.220683"
+                    ],
+                    [
+                        "145.0470841",
+                        "-38.220697"
+                    ],
+                    [
+                        "145.0471273",
+                        "-38.2207395"
+                    ],
+                    [
+                        "145.0472257",
+                        "-38.2208586"
+                    ],
+                    [
+                        "145.0472722",
+                        "-38.2208768"
+                    ],
+                    [
+                        "145.048351",
+                        "-38.2207724"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "576023369",
+                "version": "6",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0578848",
+                        "-38.2195443"
+                    ],
+                    [
+                        "145.0575254",
+                        "-38.2198298"
+                    ],
+                    [
+                        "145.0573403",
+                        "-38.2199755"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "576023370",
+                "version": "6",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0567422",
+                        "-38.2201709"
+                    ],
+                    [
+                        "145.057567",
+                        "-38.2195274"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "756392826",
+                "version": "2",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0629384",
+                        "-38.2153539"
+                    ],
+                    [
+                        "145.0632581",
+                        "-38.2151086"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "783117009",
+                "version": "3",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.057567",
+                        "-38.2195274"
+                    ],
+                    [
+                        "145.0588551",
+                        "-38.2185289"
+                    ],
+                    [
+                        "145.059486",
+                        "-38.2180378"
+                    ],
+                    [
+                        "145.060096",
+                        "-38.217572"
+                    ],
+                    [
+                        "145.061776",
+                        "-38.2162542"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "783117010",
+                "version": "3",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0565449",
+                        "-38.2203242"
+                    ],
+                    [
+                        "145.0567422",
+                        "-38.2201709"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "783814518",
+                "version": "3",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0610015",
+                        "-38.2171383"
+                    ],
+                    [
+                        "145.0604928",
+                        "-38.2175295"
+                    ],
+                    [
+                        "145.0599765",
+                        "-38.2179315"
+                    ],
+                    [
+                        "145.0596635",
+                        "-38.2181563"
+                    ],
+                    [
+                        "145.059465",
+                        "-38.2183105"
+                    ],
+                    [
+                        "145.0590722",
+                        "-38.2186158"
+                    ],
+                    [
+                        "145.0590146",
+                        "-38.2186582"
+                    ],
+                    [
+                        "145.058851",
+                        "-38.2187869"
+                    ],
+                    [
+                        "145.0584367",
+                        "-38.2191096"
+                    ],
+                    [
+                        "145.0578848",
+                        "-38.2195443"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "785782772",
+                "version": "2",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.061776",
+                        "-38.2162542"
+                    ],
+                    [
+                        "145.0629384",
+                        "-38.2153539"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "785782773",
+                "version": "2",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0632913",
+                        "-38.2153441"
+                    ],
+                    [
+                        "145.0610015",
+                        "-38.2171383"
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "785782774",
+                "version": "2",
+                "timestamp": "2021-04-17T10:51:15Z",
+                "bicycle": "yes",
+                "cycleway": "lane",
+                "foot": "yes",
+                "highway": "trunk",
+                "lanes": "2",
+                "maxspeed": "80",
+                "name": "Nepean Highway",
+                "oneway": "yes",
+                "ref": "A50"
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        "145.0634934",
+                        "-38.2151877"
+                    ],
+                    [
+                        "145.0632913",
+                        "-38.2153441"
+                    ]
+                ]
+            }
+        }
+    ]
+}

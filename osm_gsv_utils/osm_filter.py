@@ -138,7 +138,7 @@ class osm_filter(object):
 
         #print('osmium extract --bbox=' + str(margin_min.longitude) + ',' + str(margin_min.latitude) + ',' + str(margin_max.longitude) + ',' + str(margin_max.latitude) +
         #    ' australia-latest.osm.pbf -o Locality_' + locality + '_margin.osm')
-        print('osmium extract --polygon=Locality_' + locality + '_margin.geojson australia-latest.osm.pbf -o Locality_' + locality + '.osm')
+        print('osmium extract --polygon=Locality_' + locality + '_margin.geojson australia-latest.osm.pbf -o Locality_' + locality + '_margin.osm')
                   
     
     @staticmethod
@@ -148,7 +148,7 @@ class osm_filter(object):
         if type(coordinates[0]) is list:
             if type(coordinates[0][0]) is list:
                 for item in coordinates:
-                    coordinates_out = coordinates_out + flatten_coordinates(item)
+                    coordinates_out = coordinates_out + osm_filter.flatten_coordinates(item)
                 return coordinates_out
             else:
                 return coordinates
