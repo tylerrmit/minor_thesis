@@ -60,8 +60,14 @@ class tf2_model_wrapper(object):
 
         self.label_map_file       = os.path.join('TensorFlow', 'workspace', 'annotations', 'label_map.pbtxt')
         self.pipeline_config_file = os.path.join('Tensorflow', 'workspace','models', self.trained_model_name, 'pipeline.config')
+        
+        # Models still in-training and waiting to be exported have their checkpoint files here:
         self.checkpoint_path      = os.path.join('Tensorflow', 'workspace', 'models', self.trained_model_name)
 
+        # Exported models have their checkpoint files in a subdirectory
+        checkpoint_subdir = os.path.join(self.checkpoint_path, 'checkpoint') 
+        if os.path.exists(checkpoint_subdir):
+            self.checkpoint_path = checkpoint_subdir
 
         # Create output directory if it does not already exist
         if not os.path.isdir(self.output_directory):
@@ -144,28 +150,32 @@ class tf2_model_wrapper(object):
             input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
               
             # Detect objects of interest using the model
-            detections = self.detect_fn(input_tensor)
+            self.detections = self.detect_fn(input_tensor)
 
-            num_detections = int(detections.pop('num_detections'))
-            detections = {key: value[0, :num_detections].numpy()
-                        for key, value in detections.items()}
-            detections['num_detections'] = num_detections
+            num_detections = int(self.detections.pop('num_detections'))
+            self.detections = {key: value[0, :num_detections].numpy()
+                        for key, value in self.detections.items()}
+            self.detections['num_detections'] = num_detections
 
             # Count detections that met the threshold
             num_detections_threshold = 0
     
             if num_detections > 0:
-                for idx, score in enumerate(detections['detection_scores']):
-                    if score >= min_score:
+                for idx, score in enumerate(self.detections['detection_scores']):
+                    detected_class = self.detections['detection_classes'][idx] + 1
+                    
+                    if score >= min_score and detected_class == 1:
                         num_detections_threshold = num_detections_threshold + 1
         
             if verbose:
                 print('num_detections_threshold: ' + str(num_detections_threshold))
         
                 if num_detections_threshold > 0:
-                    for idx, score in enumerate(detections['detection_scores']):
+                    for idx, score in enumerate(self.detections['detection_scores']):
+                        detected_class = self.detections['detection_classes'][idx] + 1
+                    
                         if score >= min_score:
-                            print('Detection box:            ' + str(score) + ' ' + str(detections['detection_boxes'][idx]))
+                            print('Detection class ' + str(detected_class) + ' box:            ' + str(score) + ' ' + str(self.detections['detection_boxes'][idx]))
     
             if log and num_detections_threshold > 0:
                 try:            
@@ -173,14 +183,16 @@ class tf2_model_wrapper(object):
             
                     if not os.path.exists(detection_log_path):
                         detection_log = open(detection_log_path, 'w')
-                        detection_log.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3\n')
+                        detection_log.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3,orig_filename\n')
                     else:
                         detection_log = open(detection_log_path, 'a')
                 
-                    for idx, score in enumerate(detections['detection_scores']):
-                        if score >= min_score:
+                    for idx, score in enumerate(self.detections['detection_scores']):
+                        detected_class = self.detections['detection_classes'][idx] + 1
+                        
+                        if score >= min_score and detected_class == 1:
                             detection_log.write(
-                                '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f}\n'.format(
+                                '{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f},{13:s}\n'.format(
                                     lat,
                                     lon,
                                     bearing,
@@ -190,10 +202,11 @@ class tf2_model_wrapper(object):
                                     node_id,
                                     offset_id,
                                     score,
-                                    detections['detection_boxes'][idx][0],
-                                    detections['detection_boxes'][idx][1],
-                                    detections['detection_boxes'][idx][2],
-                                    detections['detection_boxes'][idx][3]
+                                    self.detections['detection_boxes'][idx][0],
+                                    self.detections['detection_boxes'][idx][1],
+                                    self.detections['detection_boxes'][idx][2],
+                                    self.detections['detection_boxes'][idx][3],
+                                    image_filename
                                 )
                             )
             
@@ -205,7 +218,7 @@ class tf2_model_wrapper(object):
         
             if write or display:
                 # Detection_classes should be ints.
-                detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
+                self.detections['detection_classes'] = self.detections['detection_classes'].astype(np.int64)
 
                 # Create a copy of the image with detection boxes overlaid
                 label_id_offset = 1
@@ -213,9 +226,9 @@ class tf2_model_wrapper(object):
 
                 viz_utils.visualize_boxes_and_labels_on_image_array(
                     image_np_with_detections,
-                    detections['detection_boxes'],
-                    detections['detection_classes']+label_id_offset,
-                    detections['detection_scores'],
+                    self.detections['detection_boxes'],
+                    self.detections['detection_classes']+label_id_offset,
+                    self.detections['detection_scores'],
                     self.category_index,
                     use_normalized_coordinates = True,
                     max_boxes_to_draw          = 5,
