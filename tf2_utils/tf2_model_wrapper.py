@@ -106,7 +106,7 @@ class tf2_model_wrapper(object):
         
         return detections
 
-    def apply_model(self, lat, lon, bearing, way_start_id, way_id, node_id, offset_id, filename=None, heading_offsets=[0,90,180,270], min_score=0.5, write=True, display=False, log=False, verbose=False):
+    def apply_model(self, lat, lon, bearing, way_start_id, way_id, node_id, offset_id, filename=None, heading_offsets=[0,90,180,270], min_score=0.5, mask=None, write=True, display=False, log=False, verbose=False):
         for heading_offset in heading_offsets:
             heading = int(round(bearing + heading_offset))
             if heading > 360:
@@ -145,8 +145,21 @@ class tf2_model_wrapper(object):
                 return
         
             # Read the image and convert it into a tensor
+            print(image_path)
             img          = cv2.imread(image_path)
             image_np     = np.array(img)
+            
+            if mask is not None:
+                mask_image_np = np.zeros_like(img)
+                channel_count = img.shape[2]
+                match_mask_color = (255,) * channel_count
+                cv2.fillPoly(mask_image_np, np.int32([mask]), match_mask_color)
+                
+                masked_image = cv2.bitwise_and(img, mask_image_np)
+                image_np = np.array(masked_image)
+            else:
+                image_np = np.array(img)
+                
             input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
               
             # Detect objects of interest using the model
@@ -222,8 +235,13 @@ class tf2_model_wrapper(object):
 
                 # Create a copy of the image with detection boxes overlaid
                 label_id_offset = 1
-                image_np_with_detections = image_np.copy()
-
+                image_np_with_detections = np.array(img)
+                
+                # Draw outline of mask
+                if mask is not None:
+                    for i in range(len(mask)-1):
+                        cv2.line(image_np_with_detections, mask[i], mask[i+1], (255, 255, 0), thickness=5)
+                        
                 viz_utils.visualize_boxes_and_labels_on_image_array(
                     image_np_with_detections,
                     self.detections['detection_boxes'],
@@ -255,7 +273,7 @@ class tf2_model_wrapper(object):
                     plt.show()
                 
                 
-    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], min_score=0.5, progress=False, verbose=False):
+    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], min_score=0.5, mask=None, progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -285,6 +303,7 @@ class tf2_model_wrapper(object):
                 row['node_id'],
                 row['offset_id'],
                 min_score = min_score,
+                mask      = mask,
                 write     = True,
                 display   = False,
                 log       = True,
@@ -302,6 +321,7 @@ class tf2_model_wrapper(object):
                     row['node_id'],
                     row['offset_id'],
                     min_score = min_score,
+                    mask      = mask,
                     write     = True,
                     display   = False,
                     log       = True,
@@ -310,7 +330,7 @@ class tf2_model_wrapper(object):
                 
         return detection_log_path
 
-    def process_split_dir(self, batch_filename, min_score=0.5, progress=False, verbose=False):
+    def process_split_dir(self, batch_filename, min_score=0.5, mask=None, progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -342,6 +362,7 @@ class tf2_model_wrapper(object):
                 filename  = row['filename'],
                 heading_offsets = [0],
                 min_score = min_score,
+                mask      = mask,
                 write     = True,
                 display   = False,
                 log       = True,
@@ -361,6 +382,7 @@ class tf2_model_wrapper(object):
                     filename  = row['filename'],
                     heading_offsets = [0],
                     min_score = min_score,
+                    mask      = mask,
                     write     = True,
                     display   = False,
                     log       = True,
