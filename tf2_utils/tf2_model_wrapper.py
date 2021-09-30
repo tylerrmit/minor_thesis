@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from tqdm.notebook import tqdm
+from tqdm.notebook import tqdm, trange
 
 
 class tf2_model_wrapper(object):
@@ -389,3 +389,77 @@ class tf2_model_wrapper(object):
                 )
                 
         return detection_log_path
+        
+        
+    def process_video(self, directory, video_in, video_out, min_score=0.5, mask=None):
+        path_in  = os.path.join(directory, video_in)
+        path_out = os.path.join(directory, video_out)
+        
+        cap = cv2.VideoCapture(path_in)
+        width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        out = cv2.VideoWriter(path_out, cv2.VideoWriter_fourcc('M','J','P','G'), 60, (width, height))
+
+        for frame_num in trange(0, frame_count):
+            ret, frame = cap.read()
+    
+            if ret == True:
+                image_np_orig = np.array(frame)
+                
+                if mask is not None:
+                    mask_image_np = np.zeros_like(image_np_orig)
+                    channel_count = image_np_orig.shape[2]
+                    match_mask_color = (255,) * channel_count
+                    cv2.fillPoly(mask_image_np, np.int32([mask]), match_mask_color)
+                
+                    masked_image = cv2.bitwise_and(image_np_orig, mask_image_np)
+                    image_np = np.array(masked_image)
+                else:
+                    image_np = image_np_orig.copy()         
+
+                input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
+                detections = self.detect_fn(input_tensor)
+    
+                num_detections = int(detections.pop('num_detections'))
+                detections = {key: value[0, :num_detections].numpy()
+                      for key, value in detections.items()}
+                detections['num_detections'] = num_detections
+
+                # detection_classes should be ints.
+                detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
+
+                label_id_offset = 1
+                image_np_with_detections = image_np_orig.copy()
+
+                viz_utils.visualize_boxes_and_labels_on_image_array(
+                    image_np_with_detections,
+                    detections['detection_boxes'],
+                    detections['detection_classes']+label_id_offset,
+                    detections['detection_scores'],
+                    self.category_index,
+                    use_normalized_coordinates=True,
+                    max_boxes_to_draw=5,
+                    min_score_thresh=min_score,
+                    agnostic_mode=False
+                )
+
+                # Draw outline of mask
+                if mask is not None:
+                    for i in range(len(mask)-1):
+                        cv2.line(image_np_with_detections, mask[i], mask[i+1], (255, 255, 0), thickness=5)
+                        
+                out.write(image_np_with_detections)
+    
+                cv2.imshow('object detection', cv2.resize(image_np_with_detections, (800, 600)))
+    
+                if cv2.waitKey(10) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+        
+        cap.release()
+        out.release()
+        cv2.destroyAllWindows()
+        
