@@ -145,7 +145,6 @@ class tf2_model_wrapper(object):
                 return
         
             # Read the image and convert it into a tensor
-            print(image_path)
             img          = cv2.imread(image_path)
             image_np     = np.array(img)
             

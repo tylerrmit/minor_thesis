@@ -65,6 +65,9 @@ class osm_walker(object):
         self.linked_way_sections_cwy     = {} # Dictionary to if any way_id linked to the node in self.linked_way_sections_all is tagged as cycleway
         
         self.linked_linestrings          = {} # Dictionary where linked ways are stored as shapely LineString objects
+        self.linked_coord_list           = {}
+        
+        self.way_id_start_by_way_id      = {} # Dictionary showing the way_id_start for each way_id, where did it go?
         
         self.detection_hits              = {} # Dictionary giving detection hits from a detection log
         
@@ -108,40 +111,62 @@ class osm_walker(object):
             # Find the name for the way based on a 'tag' element where k='name'
             tags = way.getElementsByTagName('tag')
             found_name = False
+            found_hwy  = False
             way_name   = 'Unnamed'
             
             for tag in tags:
                 k = tag.getAttribute('k')
+                v = tag.getAttribute('v').upper()
                 
                 # First preference is to use the actual name
-                if k == 'name':
-                    way_name = tag.getAttribute('v').upper()
+                if not found_name and k == 'name':
+                    way_name   = v
                     found_name = True
                 
                 # Otherwise use generic "ROUNDABOUT" or "SERVICE" for unnamed segments
-                elif not found_name and (k == 'junction' or k == 'highway'):
-                    way_name = tag.getAttribute('v').upper()
-                    
-                    # Exclude unnamed FOOTWAY
-                    # Otherwise we get a squiggle near the scout hall at Baden Powell Drive,
-                    # where someone drew a meandering path in the grass.  GSV will give us
-                    # closest image, which WILL see a bike logo (on the ROAD, from the ROAD)
-                    # and the whole track looks like a bike path to nowhere
-                    # way_id 289029036
-                    if k == 'highway' and way_name == 'FOOTWAY':
-                        way_name = None
+                elif k == 'junction' or k == 'highway':
+                    if not found_name:
+                        way_name  = v
+                    found_hwy = True
                 
                 # Skip natural features like cliff, coastline, wood, beach, water, bay
                 elif k == 'natural':
-                    way_name = None
-                    
+                    way_name   = None
+                    found_name = True
+                # Skip waterways like stream
+                elif k == 'waterway':
+                    way_name   = None
+                    found_name = True
+                # Skip railways
+                elif k == 'railway':
+                    way_name   = None
+                    found_name = True
+                # Skip reserves
+                elif k == 'landuse':
+                    way_name   = None
+                    found_name = True
+                elif k == 'leisure' or k == 'website':
+                    way_name   = None
+                    found_name = True
+                  
+                # Exclude unnamed FOOTWAY
+                # Otherwise we get a squiggle near the scout hall at Baden Powell Drive,
+                # where someone drew a meandering path in the grass.  GSV will give us
+                # closest image, which WILL see a bike logo (on the ROAD, from the ROAD)
+                # and the whole track looks like a bike path to nowhere
+                # way_id 289029036
+                # Exclude paths, e.g. Mornington Rail Trail
+                # Exclude pedestrian overpasses
+                elif k == 'highway' and v in ['FOOTWAY', 'PATH', 'STEPS', 'TRACK']:
+                    way_name   = None
+                    found_name = True
+                        
                 # Identify cycleways
                 if k.upper().startswith('CYCLEWAY'):
-                    v = tag.getAttribute('v')
-                    if v.upper() not in ['NO']:
+                    if v not in ['NO']:
                         is_cycleway = True
             
-            if way_name is not None:
+            if way_name is not None and found_hwy:
                 # Remember the name for this way, so we don't have the parse the whole way again later
                 self.way_names_by_id[way_id] = way_name
                 
@@ -404,7 +429,7 @@ class osm_walker(object):
         return False
         
     # At the end of a way, does it join to another way by the same name?
-    def find_next_way(self, way_id, match_name=True):
+    def find_next_way(self, way_id, match_name=True, include_used=False, verbose=False):
         # Retrieve the details of the way, and find the last node ID
         way           = self.ways_by_id[way_id]
         node_refs     = way.getElementsByTagName('nd')
@@ -413,17 +438,26 @@ class osm_walker(object):
     
         # Are there any other ways that intersect with this node, with any way name?
         intersecting_ways = self.way_ids_per_node[last_node_id]
+        
+        if verbose:
+            print('Last node ID: {0:s}'.format(last_node_id))
+            print('Intersecting way count: {0:d}'.format(len(intersecting_ways)))
 
         # See if any of them have the same name
         for intersecting_way_id in intersecting_ways:
-            if intersecting_way_id != way_id and intersecting_way_id in self.unused_way_ids:
-                if match_name:
-                    intersecting_way_name = self.way_names_by_id[intersecting_way_id]
+            # Exclude this way itself
+            if intersecting_way_id != way_id:
+                if verbose:
+                    print('Checking way {0:s}'.format(intersecting_way_id))
+                    
+                if intersecting_way_id in self.unused_way_ids or include_used:
+                    if match_name:
+                        intersecting_way_name = self.way_names_by_id[intersecting_way_id]
             
-                    if intersecting_way_name == this_way_name and intersecting_way_id in self.ways_by_id:
+                        if intersecting_way_name == this_way_name and intersecting_way_id in self.ways_by_id:
+                            return intersecting_way_id
+                    else:
                         return intersecting_way_id
-                else:
-                    return intersecting_way_id
     
         return None
 
@@ -470,7 +504,7 @@ class osm_walker(object):
         return all_points
     
  
-    def link_way_sections(self, verbose=False):
+    def link_way_sections(self, filter_way_name=None, verbose=False):
         # Process ways in name order, so we can walk down streets that are divided into multiple ways in an
         # order that appears sensible to a human
     
@@ -480,9 +514,13 @@ class osm_walker(object):
         self.linked_way_sections_cway = {}
         
         self.linked_linestrings       = {}
+        self.linked_coord_list        = {}
         
         # Iterate through each distinct way name (including generic ways like "junction")
         for way_name in self.ways_by_name.keys():
+            if filter_way_name is not None and way_name != filter_way_name:
+                continue
+                
             if verbose:
                 print('WAY: ' + way_name)
             
@@ -504,15 +542,18 @@ class osm_walker(object):
             # Process the next way start
             while len(way_starts) > 0:
                 # Process the next start way id
-                way_id = way_starts.pop()
-                                
+                way_id_start = way_starts.pop()
+                way_id       = way_id_start
+                                                
                 section     = [way_id]
+                
+                self.way_id_start_by_way_id[way_id] = way_id_start
                                 
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
                 section_cwy = []
                 coord_list  = []
-                
+                                
                 way         = self.ways_by_id[way_id]
                 node_refs   = way.getElementsByTagName('nd')
                 
@@ -525,7 +566,7 @@ class osm_walker(object):
                         coord_list.append((these_coords[0], these_coords[1]))
                         
                 if verbose:
-                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
+                    print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
                  
                 # Remove this way start from the list of ways we have not processed yet
                 self.unused_way_ids.remove(way_id)
@@ -537,6 +578,8 @@ class osm_walker(object):
                     way_id = next_way_id
                                         
                     section = section + [way_id]
+                    
+                    self.way_id_start_by_way_id[way_id] = way_id_start
                                     
                     way         = self.ways_by_id[way_id]
                     node_refs   = way.getElementsByTagName('nd')
@@ -546,9 +589,11 @@ class osm_walker(object):
                         if ref not in section_all:
                             section_all.append(ref)
                             section_cwy.append(self.way_is_cycleway[way_id])
+                            these_coords = self.node_coords[ref]
+                            coord_list.append((these_coords[0], these_coords[1]))
                                            
                     if verbose:
-                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
+                        print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
                                   
                     # Remove this way start from the list of ways we have not processed yet
                     self.unused_way_ids.remove(way_id)
@@ -557,21 +602,26 @@ class osm_walker(object):
                 
                     next_way_id = self.find_next_way(way_id, match_name=True)
                 
-                self.linked_way_sections_all[way_id] = section_all
-                self.linked_way_sections_cwy[way_id] = section_cwy
-                self.linked_way_sections[way_id]     = section           
-                self.linked_linestrings[way_id]      = LineString(coord_list)
+                self.linked_way_sections_all[way_id_start] = section_all
+                self.linked_way_sections_cwy[way_id_start] = section_cwy
+                self.linked_way_sections[way_id_start]     = section           
+                self.linked_linestrings[way_id_start]      = LineString(coord_list)
+                self.linked_coord_list[way_id_start]       = coord_list
                 
                 if verbose:
+                    print('Saving {0:s} {1:s}'.format(way_name, way_id_start))
                     print('section:     {0:3d} {1:s}'.format(len(section), str(section)))
                     print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))
                     
             # Handle any unused ways that weren't a "way start" and weren't linked to one
             while len(self.unused_way_ids) > 0:
                 # Process the next way id
-                way_id = self.unused_way_ids.pop()
+                way_id_start = self.unused_way_ids.pop()
+                way_id       = way_id_start
                                 
                 section = [way_id]
+                
+                self.way_id_start_by_way_id[way_id] = way_id_start
             
                 # Retrieve the details of the way, and find each node ID
                 section_all = []
@@ -590,7 +640,7 @@ class osm_walker(object):
                         coord_list.append((these_coords[0], these_coords[1]))
                                         
                 if verbose:
-                    print('{3:10d} {0:5s} {1:10s} {2:s}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
+                    print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
             
                 # Recursively walk down any ajoining ways in order
                 next_way_id = self.find_next_way(way_id, match_name=False)
@@ -599,6 +649,8 @@ class osm_walker(object):
                     way_id = next_way_id
                                         
                     section = section + [way_id]
+                    
+                    self.way_id_start_by_way_id[way_id] = way_id_start
                 
                     way         = self.ways_by_id[way_id]
                     node_refs   = way.getElementsByTagName('nd')
@@ -608,19 +660,28 @@ class osm_walker(object):
                         if ref not in section_all:
                             section_all.append(ref)
                             section_cwy.append(self.way_is_cycleway[way_id])
+                            these_coords = self.node_coords[ref]
+                            coord_list.append((these_coords[0], these_coords[1]))
                                             
                     if verbose:
-                        print('{3:10d} {0:5s} {1:10s} {2:s}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids)))
+                        print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
             
                     # Remove this way start from the list of ways we have not processed yet
                     self.unused_way_ids.remove(way_id)
                 
                     next_way_id = self.find_next_way(way_id, match_name=False)
                 
-                self.linked_way_sections_all[way_id] = section_all
-                self.linked_way_sections_cwy[way_id] = section_cwy
-                self.linked_way_sections[way_id]     = section
-                self.linked_linestrings[way_id]      = LineString(coord_list)
+                self.linked_way_sections_all[way_id_start] = section_all
+                self.linked_way_sections_cwy[way_id_start] = section_cwy
+                self.linked_way_sections[way_id_start]     = section
+                self.linked_linestrings[way_id_start]      = LineString(coord_list)
+                self.linked_coord_list[way_id_start]       = coord_list
+                
+                if verbose:
+                    print('Saving {0:s} {1:s}'.format(way_name, way_id))
+                    print('section:     {0:3d} {1:s}'.format(len(section), str(section)))
+                    print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))
+                    
     
     
     def load_detection_log(self, filename):        
@@ -661,27 +722,31 @@ class osm_walker(object):
     def snap_row(self, output, lat, lon, bearing, heading, score, bbox_0, bbox_1, bbox_2, bbox_3):
         p = Point(lat, lon)
         
-        way_id_start, node_id, distance = self.find_nearest_intersection(p)
         
-        way_name = self.way_names_by_id[way_id_start]
+        for option in [True, False]:
+            way_id_start, node_id, distance, is_intersection = self.find_nearest_node(p, want_intersection=option)
+        
+            # If the closest node is an intersection, don't output it twice
+            if (option and is_intersection) or (not option and not is_intersection):
+                way_name = self.way_names_by_id[way_id_start]
             
-        output.write('{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f},{13:s}\n'.format(
-                lat,
-                lon,
-                int(bearing),
-                int(heading),
-                int(way_id_start),
-                int(way_id_start),
-                int(node_id),
-                distance,
-                score,
-                bbox_0,
-                bbox_1,
-                bbox_2,
-                bbox_3,
-                way_name
-            )
-        )
+                output.write('{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f},{13:s}\n'.format(
+                    lat,
+                    lon,
+                    int(bearing),
+                    int(heading),
+                    int(way_id_start),
+                    int(way_id_start),
+                    int(node_id),
+                    distance,
+                    score,
+                    bbox_0,
+                    bbox_1,
+                    bbox_2,
+                    bbox_3,
+                    way_name + ' ' + str(option)
+                ))
+
    
     def is_intersection_node(self, node_id):
         if len(self.way_names_per_node[node_id]) > 1:
@@ -690,7 +755,7 @@ class osm_walker(object):
             return False
         
         
-    def write_geojsons(self, name, geojson_directory, intersection_skip_limit=1, verbose=False):
+    def write_geojsons(self, name, geojson_directory, intersection_skip_limit=1, infer_ends=True, verbose=False):
         self.detected_features      = []
         self.tagged_features        = []
         self.both_featurtes         = []
@@ -699,7 +764,7 @@ class osm_walker(object):
         
         for way_id_start in self.linked_way_sections.keys():
         #for way_id_start in ['841124847']:
-            self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, verbose=verbose)
+            self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, infer_ends=infer_ends, verbose=verbose)
         
         self.write_geojson(name, geojson_directory, 'hit',      self.detected_features)
         self.write_geojson(name, geojson_directory, 'tag',      self.tagged_features)
@@ -814,7 +879,7 @@ class osm_walker(object):
         # Output the conclusion
         if verbose:
             for idx, node_id in enumerate(self.section_node_list):       
-                print('{0:12s} {1:3d} => {2:d} {3:d} {4:d} {5:d} {6:.6f}, {7:.6f}'.format(
+                print('{0:12s} {1:3d} => {2:d} {3:d} {4:d} {5:d} {6:.6f}, {7:.6f}   {8:s}'.format(
                     node_id,
                     idx,
                     self.node_is_intersection[node_id],
@@ -822,7 +887,8 @@ class osm_walker(object):
                     self.node_hit_assumed[node_id],
                     self.node_tagged[node_id],
                     self.node_coords[node_id][0],
-                    self.node_coords[node_id][1]
+                    self.node_coords[node_id][1],
+                    self.way_names_by_id[way_id_start]
                 ))
             
         # Generate geographic feature lists for each map
@@ -1024,33 +1090,58 @@ class osm_walker(object):
                 total_distance += distance
 
         return total_distance
-        
-        
-    def find_nearest_way_segment(self, point, verbose=False):
+            
+    
+    def find_nearest_way_segment(self, point, qualitative_mode=True, verbose=False):
         closest_way      = None
         closest_distance = None
 
-        if not self.linked_linestrings:
+        if not self.linked_coord_list:
             self.link_way_sections()
             
-        for way_id in self.linked_linestrings.keys():
+        for way_id in self.linked_coord_list.keys():
             # Limit search to named ways
             way_name = self.way_names_by_id[way_id]
             
-            if way_name not in ['Unnamed', 'PATH', 'PEDESTRIAN', 'RESIDENTIAL', 'ROUNDABOUT', 'SERVICE', 'TERTIARY_LINK', 'TRACK', 'TRUNK', 'TRUNK_LINK']:
-                distance = point.distance(self.linked_linestrings[way_id])
+            if way_name not in ['Unnamed', 'FOOTWAY', 'PATH', 'PEDESTRIAN', 'RESIDENTIAL', 'ROUNDABOUT', 'SERVICE', 'TERTIARY_LINK', 'TRACK', 'TRUNK', 'TRUNK_LINK']:
+                if qualitative_mode:
+                    distance = point.distance(self.linked_linestrings[way_id])
+                else:
+                    distance = self.find_distance_to_way(point, way_id, verbose=False)
             
                 if verbose:
-                    print('Distance {0:s} {1:s} {2:f}'.format(way_id, way_name, distance))
+                    if distance is not None:
+                        print('Distance {0:s} {1:s} {2:f}'.format(way_id, way_name, distance))
+                    else:
+                        print('Distance {0:s} {1:s} NONE'.format(way_id, way_name))
                     
                 if closest_distance is None or distance < closest_distance:
+                    if verbose and closest_distance is not None:
+                        print('New closest distance was {0:f} now {1:f}'.format(closest_distance, distance))
                     closest_way      = way_id
-                    closest_distance = distance # degress, qualitative use
-        
-        if verbose:
-            print('Closest {0:s} {1:s} {2:f}'.format(closest_way, self.way_names_by_id[closest_way], closest_distance))
+                    closest_distance = distance                  
             
         return closest_way
+
+
+    def find_distance_to_way(self, point, way_id, verbose=False):
+        closest_distance_for_way = None
+        
+        coord_list = self.linked_coord_list[way_id]
+        way_name   = self.way_names_by_id[way_id]
+        
+        for i in range(0, len(coord_list)):
+            coords = coord_list[i]
+            distance = geodesic((coords[0], coords[1]), (point.coords[0][0], point.coords[0][1])).m
+            if verbose:
+                print('Coords {0:f}, {1:f}'.format(coords[0], coords[1]))
+                
+            if closest_distance_for_way is None or distance < closest_distance_for_way:
+                if verbose:
+                    print('New closest distance in way {0:s} {1:s} = {2:f}'.format(way_id, way_name, distance))
+                closest_distance_for_way = distance
+        
+        return closest_distance_for_way
     
     
     def find_distance_to_node(self, node_id, point):
@@ -1062,9 +1153,9 @@ class osm_walker(object):
         return distance # metres
     
     
-    def find_nearest_intersection(self, point, verbose=False):
+    def find_nearest_node(self, point, want_intersection=True, verbose=False):
         # First, find the nearest way
-        way_id_start = self.find_nearest_way_segment(point, verbose=verbose)
+        way_id_start = self.find_nearest_way_segment(point, verbose=False)
         
         if way_id_start is None:
             return None
@@ -1081,23 +1172,25 @@ class osm_walker(object):
             ))
             
         for node_id in self.linked_way_sections_all[way_id_start]:
-            # Limit search to intersections
-            if self.is_intersection_node(node_id):
-                if verbose:
-                    print('Checking intersection {0:s}'.format(node_id))
-                    
-                # Calculate distance (in degrees)
+            # Limit search to intersections, unless we specifically asked for any node
+            if not want_intersection or self.is_intersection_node(node_id):    
+                # Calculate distance (in metres)
                 distance = self.find_distance_to_node(node_id, point)
                 
+                if verbose:
+                    print('Checking {0:s} distance {1:f}'.format(node_id, distance))
+                    
                 if closest_distance is None or distance < closest_distance:
                     closest_node_id  = node_id
                     closest_distance = distance
+                    if verbose:
+                        print('This is the closest so far')
             else:
                 if verbose:
                     print('Skipping non-intersection {0:s}'.format(node_id))
         
         if closest_node_id is not None:
-            return way_id_start, closest_node_id, closest_distance
+            return way_id_start, closest_node_id, closest_distance, self.is_intersection_node(closest_node_id)
             
         # Resort to finding a node that is not an intersection
         for node_id in self.linked_way_sections_all[way_id_start]:
@@ -1112,5 +1205,5 @@ class osm_walker(object):
                     closest_node_id  = node_id
                     closest_distance = distance
             
-        return way_id_start, closest_node_id, closest_distance
+        return way_id_start, closest_node_id, closest_distance, False
         
