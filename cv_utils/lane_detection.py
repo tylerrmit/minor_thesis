@@ -85,11 +85,15 @@ class lane_detection(object):
         original_image = cv2.imread(path)
         original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
         
+        return self.correct_image(original_image)
+
+            
+    def correct_image(self, image_in):
         if self.camera_matrix is not None and self.dist_matrix is not None:
-            corrected_image = cv2.undistort(original_image, self.camera_matrix, self.dist_matrix, None, None)
-            return corrected_image
+            return cv2.undistort(image_in, self.camera_matrix, self.dist_matrix, None, None)
         else:
-            return original_image
+            return image_in
+            
             
     def apply_mask(self, image_in, mask_vertices):
         # Initialise a "canvas" to draw the mask on
@@ -141,10 +145,12 @@ class lane_detection(object):
             maxLineGap    = maxLineGap
         )
         
-        image_lines = lane_detection.draw_lines(image_in, lines[0], color=color, thickness=thickness)
-        
-        return image_lines
-    
+        if lines is not None:
+            return lane_detection.draw_lines(image_in, lines[0], color=color, thickness=thickness)
+        else:
+            return np.zeros((image_in.shape[0], image_in.shape[1], 3), dtype=np.uint8)
+            
+            
     @staticmethod
     def draw_lines(image_in, lines, color=(255, 0, 0), thickness=3):       
         image_lines = np.zeros((image_in.shape[0], image_in.shape[1], 3), dtype=np.uint8)
@@ -175,7 +181,9 @@ class lane_detection(object):
         Hough_maxLineGap      = 100,
         height_limit          = 9/20,
         color_own_lane        = (255, 0, 0),
-        color_left_lane       = (0, 255, 0)
+        color_left_lane       = (0, 255, 0),
+        min_slope             = 0.30,
+        max_slope             = 0,
     ):
         # Detect first round of lines, focussing on our own lanes first
         canny_image1 = self.apply_canny(
@@ -197,7 +205,7 @@ class lane_detection(object):
         )
 
         # Obtain average left and right lines, along with their slopes and intercepts
-        left_line1, right_line1, left_slope1, left_int1, right_slope1, right_int1 = self.find_average_lines(image_in, lines1, height_limit=height_limit)
+        left_line1, right_line1, left_slope1, left_int1, right_slope1, right_int1 = self.find_average_lines(image_in, lines1, height_limit=height_limit, min_slope=min_slope, max_slope=max_slope)
         
         # Draw our "own lane" lines on a black background
         #own_lane_lines = np.array([averaged_lines1[0], averaged_lines1[1]])
@@ -249,7 +257,7 @@ class lane_detection(object):
         
             # Obtain average left and right lines, along with their slopes and intercepts
             # This time, the right line will be None, we ignore it
-            left_line2, right_line2, left_slope2, left_int2, right_slope2, right_int2 = self.find_average_lines(image_in, lines2, height_limit=height_limit)
+            left_line2, right_line2, left_slope2, left_int2, right_slope2, right_int2 = self.find_average_lines(image_in, lines2, height_limit=height_limit, min_slope=min_slope, max_slope=max_slope)
         
             # Draw the left line for the next lane over, on a black background
             #left_lane_lines = np.array([averaged_lines2[0]])
@@ -268,7 +276,7 @@ class lane_detection(object):
         return lanes_image, slopes_and_intercepts
         
     
-    def find_average_lines(self, image_in, lines, height_limit=9/20, verbose=False):
+    def find_average_lines(self, image_in, lines, height_limit=9/20, min_slope=0.30, max_slope=0, verbose=False):
         left  = []
         right = []
 
@@ -282,9 +290,9 @@ class lane_detection(object):
                 y_int = parameters[1]
                 
                 # Sort lines into left vs right, based on the polarity of the slope
-                if slope < 0:
+                if (slope < 0) and (abs(slope) >= min_slope) and (abs(slope) <= max_slope or max_slope == 0):
                     left.append((slope, y_int))
-                elif slope > 0:
+                elif (slope > 0) and (abs(slope) >= min_slope) and (abs(slope) <= max_slope or max_slope == 0):
                     right.append((slope, y_int))
     
         if verbose:

@@ -452,7 +452,7 @@ class tf2_model_wrapper(object):
                         
                 out.write(image_np_with_detections)
     
-                cv2.imshow('object detection', cv2.resize(image_np_with_detections, (800, 600)))
+                cv2.imshow('object detection', cv2.resize(image_np_with_detections, (width, height)))
     
                 if cv2.waitKey(10) & 0xFF == ord('q'):
                     break
