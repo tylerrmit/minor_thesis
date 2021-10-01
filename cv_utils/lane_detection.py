@@ -81,6 +81,13 @@ class lane_detection(object):
         return predicted_width
     
     
+    def pixel_width(self, left_intersection, right_intersection):
+        if left_intersection is None or right_intersection is None:
+            return 0
+            
+        return abs(right_intersection - left_intersection)
+        
+        
     def load_image(self, path):
         original_image = cv2.imread(path)
         original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
