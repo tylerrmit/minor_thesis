@@ -26,15 +26,52 @@ class dashcam_parser(object):
     A class used to load video and corresponding NMEA data from a dashcam
     '''
 
-    def __init__(self, source_fps):
+    def __init__(
+        self,
+        source_fps,
+        lane_detector         = None,
+        write_lane_images     = False,
+        left_lane_mask_top    = 375,
+        left_lane_mask_bottom = 640,
+        left_lane_mask_margin = 80,
+        own_lane_left_prop    = 2/10,
+        own_lane_right_prop   = 2/3,
+        centre_offset         = -100,
+        min_slope             = 0.3,
+        max_slope             = 0,
+        own_lane_x_min        = 500,
+        own_lane_y_min        = 400,
+        frame_width           = 1920,
+        frame_height          = 1080
+    ):
         '''
         blah
         '''
-        self.source_fps  = source_fps
-
+        self.source_fps            = source_fps
+        self.lane_detector         = lane_detector
+        self.write_lane_images     = write_lane_images
+        self.left_lane_mask_top    = left_lane_mask_top
+        self.left_lane_mask_bottom = left_lane_mask_bottom
+        self.left_lane_mask_margin = left_lane_mask_margin
+        self.own_lane_left_prop    = own_lane_left_prop
+        self.own_lane_right_prop   = own_lane_right_prop
+        self.centre_offset         = centre_offset
+        self.min_slope             = min_slope
+        self.max_slope             = max_slope
+        self.own_lane_x_min        = own_lane_x_min
+        self.own_lane_y_min        = own_lane_y_min
+        self.frame_width           = frame_width
+        self.frame_height          = frame_height
+        
         self.ts_coords   = {}
         self.ts_altitude = {}
         self.ts_heading  = {}
+                
+        self.own_lane_vertices = [
+            (int(self.own_lane_left_prop * self.frame_width), self.left_lane_mask_bottom),
+            (self.frame_width/2 + self.centre_offset, self.left_lane_mask_top),
+            (int(self.own_lane_right_prop * self.frame_width), self.left_lane_mask_bottom)
+        ]
         
     
     def split_videos(self, dir, output_dir, output_fps=5, suffix='MP4', verbose=False):
@@ -57,12 +94,16 @@ class dashcam_parser(object):
         # Create output_dir if it does not already exists
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
+        if self.write_lane_images:
+            lane_dir = os.path.join(output_dir, 'lanes')
+            Path(lane_dir).mkdir(parents=True, exist_ok=True)
+        
         # Open CSV file recording metadata
         metadata_filename = os.path.join(output_dir, 'metadata.csv')
         
         if not os.path.exists(metadata_filename):
             csv_file = open(metadata_filename, 'w')
-            csv_file.write('filename,prefix,frame_num,lat,lon,altitude,heading\n')
+            csv_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,left_lane_pixels_bottom,left_lane_pixels_top\n')
         else:
             csv_file = open(metadata_filename, 'a')
         
@@ -130,6 +171,43 @@ class dashcam_parser(object):
                     interpolated_altitude = altitude1 + ((altitude2 - altitude1) * nmea_index_p)
                     interpolated_heading  = heading1  + ((heading2  - heading1)  * nmea_index_p)
                     
+                    # Detect lanes
+                    if self.lane_detector is not None:
+                        corrected_image = self.lane_detector.correct_image(frame)
+                        
+                        detected_lanes_image, slopes_and_intercepts = self.lane_detector.detect_lanes(
+                            corrected_image,
+                            self.own_lane_vertices,
+                            left_lane_mask_top    = self.left_lane_mask_top,
+                            left_lane_mask_bottom = self.left_lane_mask_bottom,
+                            left_lane_mask_margin = self.left_lane_mask_margin,
+                            min_slope             = self.min_slope,
+                            max_slope             = self.max_slope
+                        )
+                        
+                        left_intersection_x1, own_l_intersection_x1, own_r_intersection_x1 = self.lane_detector.find_intersection_list(
+                            detected_lanes_image,
+                            slopes_and_intercepts,
+                            self.left_lane_mask_bottom
+                        )
+                        
+                        left_intersection_x2, own_l_intersection_x2, own_r_intersection_x2 = self.lane_detector.find_intersection_list(
+                            detected_lanes_image,
+                            slopes_and_intercepts,
+                            self.left_lane_mask_top
+                        )
+                        
+                        pixel_width_bottom = self.lane_detector.pixel_width(left_intersection_x1, own_l_intersection_x1)
+                        pixel_width_top    = self.lane_detector.pixel_width(left_intersection_x2, own_l_intersection_x2)
+                        
+                        if self.write_lane_images:
+                            grid_image, intersection_list2 = self.lane_detector.draw_intersection_grid(detected_lanes_image, slopes_and_intercepts, self.left_lane_mask_bottom)
+                            
+                            cv2.imwrite(os.path.join(lane_dir, '{0:s}_{1:04d}.png'.format(self.prefix, frame_num)), grid_image)
+                    else:
+                        pixel_width_bottom = 0
+                        pixel_width_top    = 0
+                            
                     if verbose:
                         print('{0:s} {1:4d} [{2:.7f}, {3:.7f}] {4:f} {5:f}'.format(
                             self.prefix,
@@ -146,14 +224,16 @@ class dashcam_parser(object):
                     cv2.imwrite(output_filename, frame)
                     
                     # Log metadata to CSV
-                    csv_file.write('{0:s},{1:s},{2:d},{3:.7f},{4:.7f},{5:f},{6:f}\n'.format(
+                    csv_file.write('{0:s},{1:s},{2:d},{3:.7f},{4:.7f},{5:f},{6:f},{7:.2f},{8:.2f}\n'.format(
                         output_filename,
                         self.prefix,
                         frame_num,
                         interpolated_lat,
                         interpolated_lon,
                         interpolated_altitude,
-                        interpolated_heading
+                        interpolated_heading,
+                        pixel_width_bottom,
+                        pixel_width_top
                     ))
                     
                 frame_num += 1

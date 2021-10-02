@@ -16,6 +16,9 @@ from matplotlib import pyplot as plt
 
 from tqdm.notebook import tqdm, trange
 
+import warnings
+warnings.simplefilter('ignore', np.RankWarning)
+
 
 class lane_detection(object):
     '''
@@ -140,10 +143,10 @@ class lane_detection(object):
         else:
             return image_canny
             
-    def apply_hough(self, image_in, rho=2, theta=np.pi/60, threshold=100, minLineLength=10, maxLineGap=100, color=(255,255,255), thickness=3):
+    def apply_hough(self, image_in_canny, image_in_orig, rho=2, theta=np.pi/60, threshold=100, minLineLength=10, maxLineGap=100, color=(255,255,255), thickness=3):
         # Generate lines
         lines = cv2.HoughLinesP(
-            image_in,
+            image_in_canny,
             rho           = rho,
             theta         = theta,
             threshold     = threshold,
@@ -151,24 +154,28 @@ class lane_detection(object):
             minLineLength = minLineLength,
             maxLineGap    = maxLineGap
         )
-        
+                
         if lines is not None:
-            return lane_detection.draw_lines(image_in, lines[0], color=color, thickness=thickness)
+            return lane_detection.draw_lines(image_in_orig, lines.squeeze(), color=color, thickness=thickness)
+            
         else:
             return np.zeros((image_in.shape[0], image_in.shape[1], 3), dtype=np.uint8)
             
             
     @staticmethod
-    def draw_lines(image_in, lines, color=(255, 0, 0), thickness=3):       
-        image_lines = np.zeros((image_in.shape[0], image_in.shape[1], 3), dtype=np.uint8)
-               
-        for line in lines:
-            if line is not None:
+    def draw_lines(image_in, lines, image_background=None, color=(255, 0, 0), thickness=3): 
+        if image_background is None:
+            image_lines = np.zeros((image_in.shape[0], image_in.shape[1], 3), dtype=np.uint8)
+        else:
+            image_lines = np.copy(image_background)
+            
+        for line in lines:            
+            if line is not None and len(line) >= 4:
                 x1 = line[0]
                 y1 = line[1]
                 x2 = line[2]
                 y2 = line[3]
-                cv2.line(image_lines, (x1, y1), (x2, y2), color=color, thickness=thickness)
+                cv2.line(image_lines, (x1, y1), (x2, y2), (255, 255, 255), thickness=3)        
                 
         return image_lines
 
@@ -177,7 +184,7 @@ class lane_detection(object):
         image_in,
         own_lane_vertices,
         left_lane_mask_top    = 375,
-        left_lane_mask_bottom = 690,
+        left_lane_mask_bottom = 640,
         left_lane_mask_margin = 50,
         Canny_threshold1      = 50,
         Canny_threshold2      = 150,
@@ -287,6 +294,9 @@ class lane_detection(object):
         left  = []
         right = []
 
+        if verbose:
+            print('Processing {0:d} lines'.format(len(lines)))
+            
         if lines is not None:
             for line in lines:
                 x1, y1, x2, y2 = line.reshape(4)
@@ -299,8 +309,19 @@ class lane_detection(object):
                 # Sort lines into left vs right, based on the polarity of the slope
                 if (slope < 0) and (abs(slope) >= min_slope) and (abs(slope) <= max_slope or max_slope == 0):
                     left.append((slope, y_int))
+                    
+                    if verbose:
+                        print('Left slope {0:f}'.format(slope))
+                        
                 elif (slope > 0) and (abs(slope) >= min_slope) and (abs(slope) <= max_slope or max_slope == 0):
                     right.append((slope, y_int))
+                    
+                    if verbose:
+                        print('Right slope {0:f}'.format(slope))
+                    
+                else:
+                    if verbose:
+                        print('Excluding slope {0:f}'.format(slope))
     
         if verbose:
             print('Left:  ' + str(left))
