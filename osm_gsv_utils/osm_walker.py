@@ -157,7 +157,7 @@ class osm_walker(object):
                 # way_id 289029036
                 # Exclude paths, e.g. Mornington Rail Trail
                 # Exclude pedestrian overpasses
-                elif k == 'highway' and v in ['FOOTWAY', 'PATH', 'STEPS', 'TRACK']:
+                elif k == 'highway' and v in ['FOOTWAY', 'PATH', 'STEPS', 'TRACK', 'CYCLEWAY']:
                     way_name   = None
                     found_name = True
                         
@@ -1206,4 +1206,91 @@ class osm_walker(object):
                     closest_distance = distance
             
         return way_id_start, closest_node_id, closest_distance, False
+
+
+    def find_nearest_node_pair(self, point, want_intersection=True, verbose=False):
+        # First, find the nearest way
+        way_id_start = self.find_nearest_way_segment(point, verbose=False)
         
+        if way_id_start is None:
+            return None
+            
+        # Next, find the three nearest nodes from the list of intersection nodes on the way
+        closest_node_id1  = None
+        closest_distance1 = None
+        
+        closest_node_id2  = None
+        closest_distance2 = None
+        
+        closest_node_id3  = None
+        closest_distance3 = None
+        
+        if verbose:
+            print('Checking way [{0:s} {1:s}] having nodes [{2:d}]'.format(
+                way_id_start, 
+                self.way_names_by_id[way_id_start], 
+                len(self.linked_way_sections_all[way_id_start])
+            ))
+            
+        for node_id in self.linked_way_sections_all[way_id_start]:
+            # Limit search to intersections, unless we specifically asked for any node
+            if not want_intersection or self.is_intersection_node(node_id):    
+                # Calculate distance (in metres)
+                distance = self.find_distance_to_node(node_id, point)
+                
+                if verbose:
+                    print('Checking {0:s} distance {1:f}'.format(node_id, distance))
+                    
+                if closest_distance1 is None or distance < closest_distance1:
+                    # Shuffle 1st and 2nd down the list to 2nd and 3rd
+                    # There is bound to be a better python data structure for this like deque
+                    closest_node_id3  = closest_node_id2
+                    closest_distance3 = closest_distance2
+                    
+                    closest_node_id2  = closest_node_id1
+                    closest_distance2 = closest_distance1
+                    
+                    closest_node_id1  = node_id
+                    closest_distance1 = distance
+                    if verbose:
+                        print('This is the closest so far')
+                        
+                elif closest_distance2 is None or distance < closest_distance2:
+                    # Shuffle 2nd down the list to 3rd
+                    closest_node_id3  = closest_node_id2
+                    closest_distance3 = closest_distance2
+                    
+                    closest_node_id2  = node_id
+                    closest_distance2 = distance
+                    if verbose:
+                        print('This is the second closest so far')
+                        
+                elif closest_distance3 is None or distance < closest_distance3:
+                    # No shuffling required                    
+                    closest_node_id3       = node_id
+                    closest_distance3      = distance
+                    if verbose:
+                        print('This is the third closest so far')
+                        
+            else:
+                if verbose:
+                    print('Skipping non-intersection {0:s}'.format(node_id))
+        
+        if closest_node_id2 is None:
+            return way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2
+            
+        # If the distance between the point and 2nd is greater than the distance between 1st and 2nd
+        # then assume the point is actually between the 1st and the 3rd
+        # E.g. |--------------*-|-|
+        closest_node_id1_coords = self.node_coords[closest_node_id1]
+        closest_node_id2_coords = self.node_coords[closest_node_id2]
+        point_coords            = point.coords[0]
+        
+            
+        dist_p_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (point_coords[0], point_coords[1])).m
+        dist_1_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (closest_node_id1_coords[0], closest_node_id1_coords[1])).m
+            
+        if dist_p_2 >= dist_1_2:
+            return way_id_start, closest_node_id1, closest_node_id3, closest_distance1, closest_distance3
+        else:
+            return way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2
