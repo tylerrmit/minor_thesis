@@ -373,12 +373,12 @@ class lane_detection(object):
         return [x1, y1, x2, y2]
     
     
-    def draw_intersection_grid(self, image_in, slopes_and_intercepts, horizontal_line_height, color=(255,255,255), thickness=3):
+    def draw_intersection_grid(self, image_in, slopes_and_intercepts, horizontal_line_height, color=(255,255,255), thickness=3, top=None):
         # Overlay a grid showing where the slopes and intercepts of previously identified lane markings
         # intersect with a horizontal line at a certain height within the image
         # In case this is useful to model lane width based on a fixed height within the image
         
-        left_intersection_x, own_l_intersection_x, own_r_intersection_x = self.find_intersection_list(image_in, slopes_and_intercepts, horizontal_line_height)
+        left_intersection_x1, own_l_intersection_x1, own_r_intersection_x1 = self.find_intersection_list(image_in, slopes_and_intercepts, horizontal_line_height)
         
         # Draw the grid
         grid_image = np.copy(image_in)
@@ -388,16 +388,34 @@ class lane_detection(object):
         
         # Draw horizontal line
         cv2.line(grid_image, (0, horizontal_line_height), (frame_width, horizontal_line_height), color, thickness=thickness)
+        if top is not None:
+            cv2.line(grid_image, (0, top), (frame_width, top), color, thickness=thickness)
         
-        # Draw intersecting vertical lines
-        if left_intersection_x is not None:
-            cv2.line(grid_image, (int(left_intersection_x),  0), (int(left_intersection_x),  frame_height), color, thickness=thickness)
-        if own_l_intersection_x is not None:
-            cv2.line(grid_image, (int(own_l_intersection_x), 0), (int(own_l_intersection_x), frame_height), color, thickness=thickness)
-        if own_r_intersection_x is not None:
-            cv2.line(grid_image, (int(own_r_intersection_x), 0), (int(own_r_intersection_x), frame_height), color, thickness=thickness) 
+        # Draw intersecting vertical lines from bottom
+        if top is None:
+            limit = 0
+        else:
+            limit = horizontal_line_height
+            
+        if left_intersection_x1 is not None:
+            cv2.line(grid_image, (int(left_intersection_x1),  limit), (int(left_intersection_x1),  frame_height), color, thickness=thickness)
+        if own_l_intersection_x1 is not None:
+            cv2.line(grid_image, (int(own_l_intersection_x1), limit), (int(own_l_intersection_x1), frame_height), color, thickness=thickness)
+        if own_r_intersection_x1 is not None:
+            cv2.line(grid_image, (int(own_r_intersection_x1), limit), (int(own_r_intersection_x1), frame_height), color, thickness=thickness) 
         
-        intersection_list = [left_intersection_x, own_l_intersection_x, own_r_intersection_x]
+        # Do the top intersections too
+        if top is not None:
+            left_intersection_x2, own_l_intersection_x2, own_r_intersection_x2 = self.find_intersection_list(image_in, slopes_and_intercepts, top)
+        
+            if left_intersection_x2 is not None:
+                cv2.line(grid_image, (int(left_intersection_x2),  top), (int(left_intersection_x2),  0), color, thickness=thickness)
+            if own_l_intersection_x2 is not None:
+                cv2.line(grid_image, (int(own_l_intersection_x2), top), (int(own_l_intersection_x2), 0), color, thickness=thickness)
+            if own_r_intersection_x2 is not None:
+                cv2.line(grid_image, (int(own_r_intersection_x2), top), (int(own_r_intersection_x2), 0), color, thickness=thickness) 
+        
+        intersection_list = [left_intersection_x1, own_l_intersection_x1, own_r_intersection_x1]
         
         return grid_image, intersection_list
         

@@ -41,6 +41,8 @@ class dashcam_parser(object):
         max_slope             = 0,
         own_lane_x_min        = 500,
         own_lane_y_min        = 400,
+        intercept_bottom      = 640,
+        intercept_top         = 486,
         frame_width           = 1920,
         frame_height          = 1080
     ):
@@ -60,6 +62,8 @@ class dashcam_parser(object):
         self.max_slope             = max_slope
         self.own_lane_x_min        = own_lane_x_min
         self.own_lane_y_min        = own_lane_y_min
+        self.intercept_bottom      = intercept_bottom
+        self.intercept_top         = intercept_top
         self.frame_width           = frame_width
         self.frame_height          = frame_height
         
@@ -103,7 +107,7 @@ class dashcam_parser(object):
         
         if not os.path.exists(metadata_filename):
             csv_file = open(metadata_filename, 'w')
-            csv_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,left_lane_pixels_bottom,left_lane_pixels_top\n')
+            csv_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1\n')
         else:
             csv_file = open(metadata_filename, 'a')
         
@@ -188,20 +192,27 @@ class dashcam_parser(object):
                         left_intersection_x1, own_l_intersection_x1, own_r_intersection_x1 = self.lane_detector.find_intersection_list(
                             detected_lanes_image,
                             slopes_and_intercepts,
-                            self.left_lane_mask_bottom
+                            self.intercept_bottom
                         )
                         
                         left_intersection_x2, own_l_intersection_x2, own_r_intersection_x2 = self.lane_detector.find_intersection_list(
                             detected_lanes_image,
                             slopes_and_intercepts,
-                            self.left_lane_mask_top
+                            self.intercept_top
                         )
                         
                         pixel_width_bottom = self.lane_detector.pixel_width(left_intersection_x1, own_l_intersection_x1)
                         pixel_width_top    = self.lane_detector.pixel_width(left_intersection_x2, own_l_intersection_x2)
                         
+                        left_slope2, left_int2, left_slope1, left_int1, right_slope1, right_int1 = slopes_and_intercepts
+                        
                         if self.write_lane_images:
-                            grid_image, intersection_list2 = self.lane_detector.draw_intersection_grid(detected_lanes_image, slopes_and_intercepts, self.left_lane_mask_bottom)
+                            grid_image, intersection_list2 = self.lane_detector.draw_intersection_grid(
+                                detected_lanes_image,
+                                slopes_and_intercepts,
+                                self.intercept_bottom,
+                                top=self.intercept_top
+                            )
                             
                             cv2.imwrite(os.path.join(lane_dir, '{0:s}_{1:04d}.png'.format(self.prefix, frame_num)), grid_image)
                     else:
@@ -224,7 +235,7 @@ class dashcam_parser(object):
                     cv2.imwrite(output_filename, frame)
                     
                     # Log metadata to CSV
-                    csv_file.write('{0:s},{1:s},{2:d},{3:.7f},{4:.7f},{5:f},{6:f},{7:.2f},{8:.2f}\n'.format(
+                    csv_file.write('{0:s},{1:s},{2:d},{3:.7f},{4:.7f},{5:f},{6:f},{7:.2f},{8:.2f},{9:s},{10:s},{11:s},{12:s},{13:s},{14:s}\n'.format(
                         output_filename,
                         self.prefix,
                         frame_num,
@@ -233,7 +244,13 @@ class dashcam_parser(object):
                         interpolated_altitude,
                         interpolated_heading,
                         pixel_width_bottom,
-                        pixel_width_top
+                        pixel_width_top,
+                        str(left_slope2),
+                        str(left_int2),
+                        str(left_slope1),
+                        str(left_int1),
+                        str(right_slope1),
+                        str(right_int1)
                     ))
                     
                 frame_num += 1
