@@ -1487,4 +1487,86 @@ class osm_walker(object):
 
         # Write the merged data to a new CSV
         combined_df.to_csv(filename_out, index=False)
-    
+
+    def draw_lane_detections(self, csv_in, geojson_filename, prop_missing=0.2, intersection_y_std=50, intersection_x_std=50, width_top_mean=75):
+        # Read the CSV with summary information joined to individual detection information
+        df = pd.read_csv(csv_in)
+        
+        # Apply detection thresholds for drawing a path
+        pd.options.mode.chained_assignment = None
+        
+        df = df[df['prop_missing']       <= prop_missing]
+        df = df[df['intersection_y_std'] <= intersection_y_std]
+        df = df[df['intersection_x_std'] <= intersection_x_std]
+        df = df[df['width_top_mean']     >= width_top_mean]
+        
+        # Reduce columns to the interesting ones
+        df = df[['way_id_start', 'node_id1', 'node_id2', 'way_name', 'prop_missing', 'intersection_y_std', 'intersection_x_std', 'width_top_mean']]
+        
+        # Group down to one record per combination of way_id_start x node_id1 x node_id2
+        grouped = df.groupby(['way_id_start', 'node_id1', 'node_id2'])
+        first_values = grouped.first()
+        first_values = first_values.reset_index()
+        
+        # Process each row
+        self.lane_features = []
+        
+        for i in trange(0, len(first_values)):
+            way_id_start = str(first_values.loc[i, 'way_id_start'])
+            node_id1     = str(first_values.loc[i, 'node_id1'])
+            node_id2     = str(first_values.loc[i, 'node_id2'])
+            
+            self.draw_lane(way_id_start, node_id1, node_id2)
+        
+        if len(self.lane_features) > 0:
+            featurecollection = {
+                'type':     'FeatureCollection',
+                'name':     os.path.basename(geojson_filename),
+                'features': self.lane_features
+            }
+        
+            print('Writing {0:d} features to: {1:s}'.format(len(self.lane_features), geojson_filename))
+            with open(geojson_filename, 'w') as outfile:
+                json.dump(featurecollection, outfile, indent=4)
+                outfile.close()
+        else:
+            print('No features to write to: ' + geojson_filename)
+            
+            
+    def draw_lane(self, way_id_start, node_id1, node_id2):        
+        # Get a list of all nodes in way_start_id, in order
+        # Note: we might encounter either node_id1 or node_id2 first
+        
+        section_node_list = self.linked_way_sections_all[way_id_start]
+        
+        pen_down         = 0
+        coordinates_list = []
+        
+        for node_id in section_node_list:
+            if node_id in [node_id1, node_id2]:
+                # Include the start and end nodes
+                coordinates_list.append([self.node_coords[node_id][1], self.node_coords[node_id][0]])
+                
+                # Keep track of how many end nodes we have encountered
+                pen_down += 1
+            elif pen_down % 2 == 1:
+                # If we have only encountered one end node so far, we are between them, so include this one
+                coordinates_list.append([self.node_coords[node_id][1], self.node_coords[node_id][0]])
+
+        if len(coordinates_list) > 0:               
+            feature = {
+                'type': 'Feature',
+                'properties': {
+                    'id':   '{0:s}_{1:s}_{2:s}'.format(way_id_start, node_id1, node_id2),
+                    'name': '{0:s}_{1:s}_{2:s}_{3:s}'.format(self.way_names_by_id[way_id_start], way_id_start, node_id1, node_id2),
+                    'version': '1'
+                },
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': coordinates_list
+                }
+            }
+            
+            self.lane_features.append(feature)
+
+            
