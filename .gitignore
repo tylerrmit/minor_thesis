@@ -18,9 +18,11 @@ data_sources/dashcam_tour_frankston/*.MP4
 data_sources/dashcam_tour_frankston/*.NMEA
 data_sources/dashcam_tour_frankston/split/*.png
 data_sources/dashcam_tour_frankston/split/lanes/*.png
+data_sources/dashcam_tour_frankston/split/lanes_filtered/*.png
 data_sources/dashcam_tour_mount_eliza/detections*
 data_sources/dashcam_tour_mount_eliza/*.MP4
 data_sources/dashcam_tour_mount_eliza/*.NMEA
 data_sources/dashcam_tour_mount_eliza/split/*.png
 data_sources/dashcam_tour_mount_eliza/split/lanes/*.png
+data_sources/dashcam_tour_mount_eliza/split/lanes_filtered/*.png
 

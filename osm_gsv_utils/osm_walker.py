@@ -93,7 +93,7 @@ class osm_walker(object):
             # boundary of the locality
             doc_margin = xml.dom.minidom.parse(filename_margin)
 
-            self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
+            #self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
             self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
 
 
@@ -102,7 +102,10 @@ class osm_walker(object):
         ways_xml  = doc.getElementsByTagName('way')
         nodes_xml = doc.getElementsByTagName('node')
 
-        for way in ways_xml:
+        #for way in ways_xml:
+        for way_idx in trange(0, len(ways_xml)):
+            way = ways_xml[way_idx]
+            
             # Get the ID for this way
             way_id = way.getAttribute('id')
             
@@ -1336,7 +1339,7 @@ class osm_walker(object):
         # Exclude records where we were too close to the intersection, to remove uncertainty about which road we were on
         # And it will hopefully remove noise/uncertainty around intersections as shoulders disappear
         # And uncertainty around roundabouts
-        if closest_node_id1 is not None and closest_node_id2 is not None and closest_distance1 >= 20 :
+        if closest_node_id1 is not None and closest_node_id2 is not None and closest_distance1 >= 30 :
             coords1 = self.node_coords[closest_node_id1]
             coords2 = self.node_coords[closest_node_id2]
             
