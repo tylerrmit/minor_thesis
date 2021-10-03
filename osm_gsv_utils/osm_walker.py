@@ -10,6 +10,7 @@ import os
 import sys
 
 import pandas as pd
+import numpy as np
 
 import xml.dom.minidom
 
@@ -1295,22 +1296,41 @@ class osm_walker(object):
             
         dist_p_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (point_coords[0], point_coords[1])).m
         dist_1_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (closest_node_id1_coords[0], closest_node_id1_coords[1])).m
-            
+        
+        
         if dist_p_2 >= dist_1_2:
-            return way_id_start, closest_node_id1, closest_node_id3, closest_distance1, closest_distance3
+            closest_node_idB = closest_node_id3
+            closest_distanceB = closest_distance3            
         else:
-            return way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2
+            closest_node_idB  = closest_node_id2
+            closest_distanceB = closest_distance2
+        
+        # Always report the node with the lower ID first, we don't split the segment into two parts,
+        # where one part is closer to one end, and the other part is closer to the other end
+        if closest_node_idB is not None and closest_node_id1 is not None and closest_node_idB < closest_node_id1:
+            closest_node_idA  = closest_node_idB
+            closest_distanceA = closest_distanceB
+            closest_node_idB  = closest_node_id1
+            closest_distanceB = closest_distance1
+        else:
+            closest_node_idA  = closest_node_id1
+            closest_distanceA = closest_distance1
+            
+        return way_id_start, closest_node_idA, closest_node_idB, closest_distanceA, closest_distanceB
 
-    def find_nearest_intersections_for_csv(self, filename_in, filename_out):
+
+    def find_nearest_intersections_for_csv(self, filename_in, filename_out, intercept_bottom=640, intercept_top=486):
         df = pd.read_csv(filename_in)
         
         tqdm.pandas()
         
         output_file = open(filename_out, 'w')
-        output_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1,way_id_start,node_id1,node_id2,distance1,distance2,lat1,lon1,lat2,lon2,way_name\n')
+        output_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1,way_id_start,node_id1,node_id2,distance1,distance2,lat1,lon1,lat2,lon2,intersection_x,intersection_y,x2_bottom,x1_bottom,x2_top,x1_top,slope_diff,way_name\n')
                         
         df.progress_apply(lambda row: self.find_nearest_intersections_row(
             output_file,
+            intercept_bottom,
+            intercept_top,
             row['filename'],
             row['prefix'],
             row['frame_num'],
@@ -1330,7 +1350,7 @@ class osm_walker(object):
         )
         
 
-    def find_nearest_intersections_row(self, output, filename, prefix, frame_num, lat, lon, altitude, heading, pixels_bottom, pixels_top, left_slope2, left_int2, left_slope1, left_int1, right_slope1, right_int1):
+    def find_nearest_intersections_row(self, output, intercept_bottom, intercept_top, filename, prefix, frame_num, lat, lon, altitude, heading, pixels_bottom, pixels_top, left_slope2, left_int2, left_slope1, left_int1, right_slope1, right_int1):
         p = Point(lat, lon)
         
         way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2 = self.find_nearest_node_pair(p)
@@ -1339,12 +1359,49 @@ class osm_walker(object):
         # Exclude records where we were too close to the intersection, to remove uncertainty about which road we were on
         # And it will hopefully remove noise/uncertainty around intersections as shoulders disappear
         # And uncertainty around roundabouts
-        if closest_node_id1 is not None and closest_node_id2 is not None and closest_distance1 >= 30 :
+        if closest_node_id1 is not None and closest_node_id2 is not None and closest_distance1 >= 30 and closest_distance2 >= 30:
             coords1 = self.node_coords[closest_node_id1]
             coords2 = self.node_coords[closest_node_id2]
             
-            #output.write('{0:s},{1:s},{2:d},{3:.6f},{4:.6f},{5:d},{6:d},{7:d},{8:d},{9:f},{10:f},{11:f},{12:f},{13:f},{14:f},{15:s},{16:s},{17:s},{18:d},{19:d},{20:.6f},{21:.6f},{22:.6f},{23:.6f},{24:s}\n'.format(
-            output.write('{0:s},{1:s},{2:d},{3:.6f},{4:.6f},{5:d},{6:d},{7:d},{8:d},{9:s},{10:s},{11:s},{12:s},{13:s},{14:s},{15:s},{16:s},{17:s},{18:d},{19:d},{20:.6f},{21:.6f},{22:.6f},{23:.6f},{24:s}\n'.format(
+            # Work out where the lines intersect
+            if left_slope2 is not None and left_slope1 is not None and left_slope2 != 'None' and left_slope1 != 'None' and left_slope2 != 0 and left_slope1 != 0:
+                y1 = intercept_bottom
+                x1 = int((intercept_bottom - float(left_int2)) / float(left_slope2))
+            
+                y2 = intercept_top
+                x2 = int((intercept_top    - float(left_int2)) / float(left_slope2))
+            
+                y3 = intercept_bottom
+                x3 = int((intercept_bottom - float(left_int1)) / float(left_slope1))
+            
+                y4 = intercept_top
+                x4 = int((intercept_top    - float(left_int1)) / float(left_slope1))
+            
+                intersection = self.findIntersection(x1, y1, x2, y2, x3, y3, x4, y4)
+                
+                intersection_x = int(intersection[0])
+                intersection_y = int(intersection[1])
+                
+                x2_top    = x2
+                x2_bottom = x1
+                
+                x1_top    = x4
+                x1_bottom = x3
+            else:
+                intersection_x = 9999
+                intersection_y = 9999
+                
+                x2_top    = 0
+                x2_bottom = 0
+                x1_top    = 0
+                x1_bottom = 0
+            
+            if left_slope2 is None or left_slope1 is None or left_slope2 == 'None' or left_slope1 == 'None':
+                slope_diff = None
+            else:
+                slope_diff = float(left_slope1) - float(left_slope2)
+                
+            output.write('{0:s},{1:s},{2:d},{3:.6f},{4:.6f},{5:d},{6:d},{7:d},{8:d},{9:s},{10:s},{11:s},{12:s},{13:s},{14:s},{15:s},{16:s},{17:s},{18:d},{19:d},{20:.6f},{21:.6f},{22:.6f},{23:.6f},{24:d},{25:d},{26:d},{27:d},{28:d},{29:d},{30:s},{31:s}\n'.format(
                 filename,
                 prefix,
                 frame_num,
@@ -1369,5 +1426,65 @@ class osm_walker(object):
                 coords1[1],
                 coords2[0],
                 coords2[1],
+                intersection_x,
+                intersection_y,
+                int(x2_bottom),
+                int(x1_bottom),
+                int(x2_top),
+                int(x1_top),
+                str(slope_diff),
                 self.way_names_by_id[way_id_start]
             ))
+    
+    # https://stackoverflow.com/questions/20677795/how-do-i-compute-the-intersection-point-of-two-lines
+    # Modified to protect against divide by zero and provide extreme defaults to the application in that case
+    # 9999 is well outside the bounds of the image size 1920x1080 so will be seen as an outlier
+    @staticmethod
+    def findIntersection(x1,y1,x2,y2,x3,y3,x4,y4):
+        denominator = ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
+        
+        if denominator != 0:
+            px = ( (x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4) ) / denominator
+            py = ( (x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4) ) / denominator
+        else:
+            px = 9999
+            py = 9999
+            
+        return [px, py]
+        
+    def summarise_lane_detections_csv(self, filename_in, filename_out):
+        # Read the original CSV
+        df = pd.read_csv(filename_in)
+        
+        # Flag rows where either of the left lane lines are missing
+        df1 = df[['way_id_start', 'node_id1', 'node_id2', 'intersection_x', 'intersection_y', 'left_slope2', 'left_slope1', 'x2_top', 'x1_top']]
+
+        pd.options.mode.chained_assignment = None
+
+        df1.loc[(df['left_slope2'] != 'None') & (df['left_slope1'] != 'None'), "missing"] = 0
+        df1.loc[(df['left_slope2'] == 'None') | (df['left_slope1'] == 'None'), "missing"] = 1
+        
+        # Exclude missing values from average and standard deviation
+        df1.loc[(abs(df['intersection_x']) >= 9999), 'intersection_x'] = None
+        df1.loc[(abs(df['intersection_y']) >= 9999), 'intersection_y'] = None
+
+        df1['width_top'] = df1['x1_top'] - df1['x2_top']
+        df1.loc[(df1['width_top'] == 0), 'width_top'] = None
+
+        # Create summary statistics per road segment
+        df2 = df1.groupby(['way_id_start', 'node_id1', 'node_id2']).agg({
+            'intersection_x': ['std'],
+            'intersection_y': ['mean', 'std'],
+            'width_top':      ['mean', 'std'],
+            'missing':        ['mean']
+        })
+        df2.columns = ['intersection_x_std', 'intersection_y_mean', 'intersection_y_std', 'width_top_mean', 'width_top_std', 'prop_missing']
+        df2 = df2.reset_index()
+        
+        # Merge summary statistics back onto the main dataframe
+        merge_columns = ['way_id_start', 'node_id1', 'node_id2']
+        combined_df = pd.merge(df, df2, how='left', left_on=merge_columns, right_on=merge_columns)
+
+        # Write the merged data to a new CSV
+        combined_df.to_csv(filename_out, index=False)
+    
