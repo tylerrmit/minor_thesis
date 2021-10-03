@@ -22,7 +22,7 @@ from geopy.distance import geodesic
 
 from shapely.geometry import Point, LineString
 
-from tqdm.notebook import tqdm
+from tqdm.notebook import tqdm, trange
 
 
 class osm_walker(object):
@@ -156,10 +156,12 @@ class osm_walker(object):
                 # and the whole track looks like a bike path to nowhere
                 # way_id 289029036
                 # Exclude paths, e.g. Mornington Rail Trail
+                # Exclude off-road cycleways e.g. Peninsula Link Trail
                 # Exclude pedestrian overpasses
-                elif k == 'highway' and v in ['FOOTWAY', 'PATH', 'STEPS', 'TRACK', 'CYCLEWAY']:
+                if k == 'highway' and v in ['FOOTWAY', 'PATH', 'STEPS', 'TRACK', 'CYCLEWAY']:
                     way_name   = None
                     found_name = True
+                    found_hwy  = True
                         
                 # Identify cycleways
                 if k.upper().startswith('CYCLEWAY'):
@@ -718,6 +720,7 @@ class osm_walker(object):
             row['bbox_3']),
             axis=1
         )
+               
 
     def snap_row(self, output, lat, lon, bearing, heading, score, bbox_0, bbox_1, bbox_2, bbox_3):
         p = Point(lat, lon)
@@ -1294,3 +1297,74 @@ class osm_walker(object):
             return way_id_start, closest_node_id1, closest_node_id3, closest_distance1, closest_distance3
         else:
             return way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2
+
+    def find_nearest_intersections_for_csv(self, filename_in, filename_out):
+        df = pd.read_csv(filename_in)
+        
+        tqdm.pandas()
+        
+        output_file = open(filename_out, 'w')
+        output_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1,way_id_start,node_id1,node_id2,distance1,distance2,lat1,lon1,lat2,lon2,way_name\n')
+                        
+        df.progress_apply(lambda row: self.find_nearest_intersections_row(
+            output_file,
+            row['filename'],
+            row['prefix'],
+            row['frame_num'],
+            row['lat'],
+            row['lon'],
+            row['altitude'],
+            row['heading'],
+            row['pixels_bottom'],
+            row['pixels_top'],
+            row['left_slope2'],
+            row['left_int2'],
+            row['left_slope1'],
+            row['left_int1'],
+            row['right_slope1'],
+            row['right_int1']),
+            axis=1
+        )
+        
+
+    def find_nearest_intersections_row(self, output, filename, prefix, frame_num, lat, lon, altitude, heading, pixels_bottom, pixels_top, left_slope2, left_int2, left_slope1, left_int1, right_slope1, right_int1):
+        p = Point(lat, lon)
+        
+        way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2 = self.find_nearest_node_pair(p)
+        
+        # Only output records where the segment was found_hwy
+        # Exclude records where we were too close to the intersection, to remove uncertainty about which road we were on
+        # And it will hopefully remove noise/uncertainty around intersections as shoulders disappear
+        # And uncertainty around roundabouts
+        if closest_node_id1 is not None and closest_node_id2 is not None and closest_distance1 >= 20 :
+            coords1 = self.node_coords[closest_node_id1]
+            coords2 = self.node_coords[closest_node_id2]
+            
+            #output.write('{0:s},{1:s},{2:d},{3:.6f},{4:.6f},{5:d},{6:d},{7:d},{8:d},{9:f},{10:f},{11:f},{12:f},{13:f},{14:f},{15:s},{16:s},{17:s},{18:d},{19:d},{20:.6f},{21:.6f},{22:.6f},{23:.6f},{24:s}\n'.format(
+            output.write('{0:s},{1:s},{2:d},{3:.6f},{4:.6f},{5:d},{6:d},{7:d},{8:d},{9:s},{10:s},{11:s},{12:s},{13:s},{14:s},{15:s},{16:s},{17:s},{18:d},{19:d},{20:.6f},{21:.6f},{22:.6f},{23:.6f},{24:s}\n'.format(
+                filename,
+                prefix,
+                frame_num,
+                lat,
+                lon,
+                int(altitude),
+                int(heading),
+                int(pixels_bottom),
+                int(pixels_top),
+                left_slope2,
+                left_int2,
+                left_slope1,
+                left_int1,
+                right_slope1,
+                right_int1,
+                way_id_start,
+                closest_node_id1,
+                closest_node_id2,
+                int(closest_distance1),
+                int(closest_distance2),
+                coords1[0],
+                coords1[1],
+                coords2[0],
+                coords2[1],
+                self.way_names_by_id[way_id_start]
+            ))
