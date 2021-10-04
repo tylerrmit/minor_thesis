@@ -2,16 +2,16 @@
 % Minor thesis template
 % S.M.M. (Saied) Tahaghoghi, 2004
 \documentclass[11pt,twoside]{report}
-\usepackage{a4wide,caption,epsfig,fancyheadings,natbib,url}
+\usepackage{a4wide,caption,epsfig,fancyheadings,url}
 
 % Place the correct values here
 %Set to the original submission date when submitted amended thesis
 \newcommand{\SubmissionDate}{\today}
-\newcommand{\student}{TODO:Name}
-\newcommand{\supervisor}{TODO:Supervisor}
-\newcommand{\topic}{TODO:Thesis Title}
+\newcommand{\student}{Tyler Saxton}
+\newcommand{\supervisor}{Dhirendra Singh}
+\newcommand{\topic}{Mapping suburban bicycle lanes using streetscape images and deep learning}
 \newcommand{\school}{School of Computer Science and Information Technology}
-\newcommand{\program}{Masters of Applied Science (Information Technology)}
+\newcommand{\program}{Masters of Data Science}
 \newcommand{\institution}{Royal Melbourne Institute of Technology}
 
 % Use the remark command to highlight text for discussion
@@ -38,7 +38,7 @@
 %   style, any other letter for author year, default = author year;
 % - the punctuation that comes between the author names and the year
 % - the punctuation that comes between years or numbers when common author lists are suppressed (default = ,);
-\bibpunct{[}{]}{;}{a}{,}{;}
+% \bibpunct{[}{]}{;}{a}{,}{;}
 
 
 \begin{document}
@@ -66,7 +66,7 @@ This thesis contains work that has not been submitted previously, in
 whole or in part, for any other academic award and is solely my
 original research, except where acknowledged.
 
-This work has been carried out since TODO:MONTH TODO:YEAR, under the
+This work has been carried out since March 2021, under the
 supervision of {\supervisor}.
 
 \paragraph{}
@@ -80,147 +80,94 @@ supervision of {\supervisor}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter*{Acknowledgements}
 
-TODO:THANKS!
+First and foremost, I would like to thank Dr. Dhirendra Singh for inspiring this research and supervising me throughout the year.  I also greatly appreciate the input provided by Dr. Ron van Schyndel and the ``Research Methods'' class of Semester 1 2021, as I worked to document a detailed research proposal. \\
+
+To Dr. Sophie Bittinger, Dr. Logan Bittinger, Laura Pritchard, and Dr. Curtis Saxton, thank you for your encouragement, and your assistance with the editing process.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{Summary}
+
+A non-technical summary for public dissemination, up to 200 words
+
+TODO: technical and non-technical summaries of research
+
+\chapter*{Abstract}
+
+Up to 200 words
+
+TODO: technical and non-technical summaries of research
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \tableofcontents
 \listoffigures
 \listoftables
 
-\pagenumbering{arabic}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter*{Abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Introduction}
+\pagenumbering{arabic}
 
+\remark{TODO: clear research questions/aims/hypotheses}
 
-\citet{Bloggs:1994,Somebody:2001} say that this is important.  On the
-other hand, some others say this is actually not important at
-all~\citep{Doe:2003}.
+\remark{TODO: background knowledge}
 
-Figure~\ref{fig-MyImportantGraph} illustrates how this occurs.  I learnt
-some of this by searcing the Web using
-\remark{Should we say this?}
-Google\footnote{\url{http://www.google.com}}.
+The benefits of ``active transport'', such as walking and cycling, have been well documented in previous studies.  Participants' health may improve due to their increased physical activity.  There are environmental benefits due to reduced emissions and pollution.  And there are economic benefits, including a reduced burden on the health system, and reduced transportation costs for participants \cite{LEE2012219} \cite{RABL2012121}.
 
-\begin{figure}[tp]
-    \begin{center}
-   
-    \end{center}
-\end{figure}
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
-blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Background}
+\chapter{Literature Review}
+
+\remark{TODO: literature review places research in context}
+
+\remark{TODO: background knowledge}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{A Section}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Methods}
+
+\remark{TODO: clear and accurate description of methods}
+
+\remark{TODO: sufficient detail to allow reproduction of results}
+
+\remark{TODO: awareness and critical evaluation of alternatives}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Another Section}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{The Approach}
+\chapter{Results and Discussion}
+
+\remark{TODO: clear and complete presentation of results}
+
+\remark{TODO: sufficient quantity of work}
+
+\remark{TODO: appropriate intellectual level}
+
+\remark{TODO: appropriate consideration of evidence in discussion}
+
+\remark{TODO: uncertainty/error analysis}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{A Section}
-
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{Another Section}
+\section{Yet Another Section}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Experiments}
+\chapter{Conclusion}
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{A Section}
+\remark{TODO: conclusions are supported by the observations/results/calculations}
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{Another Section}
+\remark{TODO: conclusions relate to the original research questions/aims/hypotheses}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
 \chapter{Testbed Configuration}
 
-\bibliographystyle{abbrvnat}
-\bibliography{Bib/strings,Bib/main}
+\cleardoublepage
+\bibliographystyle{IEEEtran}
+\bibliography{Bib/references.bib}
 \end{document}
 \end{document}

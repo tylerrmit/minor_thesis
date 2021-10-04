@@ -1,12 +1,10 @@
-\contentsline {paragraph}{}{i}
-\contentsline {chapter}{\numberline {1}Introduction}{3}
-\contentsline {chapter}{\numberline {2}Background}{6}
-\contentsline {section}{\numberline {2.1}A Section}{6}
-\contentsline {section}{\numberline {2.2}Another Section}{6}
-\contentsline {chapter}{\numberline {3}The Approach}{7}
-\contentsline {section}{\numberline {3.1}A Section}{7}
-\contentsline {section}{\numberline {3.2}Another Section}{7}
-\contentsline {chapter}{\numberline {4}Experiments}{8}
-\contentsline {section}{\numberline {4.1}A Section}{8}
-\contentsline {section}{\numberline {4.2}Another Section}{8}
-\contentsline {chapter}{\numberline {A}Testbed Configuration}{9}
+\contentsline {paragraph}{}{i}%
+\contentsline {chapter}{\numberline {1}Introduction}{1}%
+\contentsline {chapter}{\numberline {2}Literature Review}{2}%
+\contentsline {section}{\numberline {2.1}A Section}{2}%
+\contentsline {chapter}{\numberline {3}Methods}{3}%
+\contentsline {section}{\numberline {3.1}Another Section}{3}%
+\contentsline {chapter}{\numberline {4}Results and Discussion}{4}%
+\contentsline {section}{\numberline {4.1}Yet Another Section}{4}%
+\contentsline {chapter}{\numberline {5}Conclusion}{5}%
+\contentsline {chapter}{\numberline {A}Testbed Configuration}{6}%
