@@ -1,7 +1,9 @@
 % RMIT University School of CS&IT
 % Minor thesis template
 % S.M.M. (Saied) Tahaghoghi, 2004
+
 \documentclass[11pt,twoside]{report}
+
 \usepackage{a4wide,caption,epsfig,fancyheadings,url}
 
 % Place the correct values here
@@ -9,7 +11,7 @@
 \newcommand{\SubmissionDate}{\today}
 \newcommand{\student}{Tyler Saxton}
 \newcommand{\supervisor}{Dhirendra Singh}
-\newcommand{\topic}{Mapping suburban bicycle lanes using streetscape images and deep learning}
+\newcommand{\topic}{Mapping suburban bicycle lanes using street scene images and deep learning}
 \newcommand{\school}{School of Computer Science and Information Technology}
 \newcommand{\program}{Masters of Data Science}
 \newcommand{\institution}{Royal Melbourne Institute of Technology}
@@ -25,21 +27,10 @@
 
 % This is the line spacing - set to 2 for draft submission to
 % supervisor, 1.3 for the final submission
-\renewcommand{\baselinestretch}{1.00}
+\renewcommand{\baselinestretch}{1.3}
 
 \renewcommand{\captionfont}{\it}
 \raggedbottom
-
-%For Natbib Author, year citation format
-% - the opening bracket symbol, default = (
-% - the closing bracket symbol, default = )
-% - the punctuation between multiple citations, default = ;
-% - the letter n for numerical style, or s for numerical superscript
-%   style, any other letter for author year, default = author year;
-% - the punctuation that comes between the author names and the year
-% - the punctuation that comes between years or numbers when common author lists are suppressed (default = ,);
-% \bibpunct{[}{]}{;}{a}{,}{;}
-
 
 \begin{document}
 
@@ -80,24 +71,34 @@ supervision of {\supervisor}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter*{Acknowledgements}
 
-First and foremost, I would like to thank Dr. Dhirendra Singh for inspiring this research and supervising me throughout the year.  I also greatly appreciate the input provided by Dr. Ron van Schyndel and the ``Research Methods'' class of Semester 1 2021, as I worked to document a detailed research proposal. \\
+First and foremost, I would like to thank Dr. Dhirendra Singh for inspiring this research and supervising me throughout the year.  I also greatly appreciate the input provided by Dr. Ron van Schyndel and the ``Research Methods'' class of Semester 1 2021, as I worked to develop a detailed research proposal. \\
 
 To Dr. Sophie Bittinger, Dr. Logan Bittinger, Laura Pritchard, and Dr. Curtis Saxton, thank you for your encouragement, and your assistance with the editing process.
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{To-Do}
+
+\begin{itemize}
+\item{Revisit abstract to update the scope of results based on any other suburbs tested}
+\item{Repetitive language between Summary and Abstract ``this thesis presents''}
+\item{I'm sure I had a better paper on road boundary detection, find it!}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter*{Summary}
 
-A non-technical summary for public dissemination, up to 200 words
+Many policy makers around the world wish to encourage cycling, for health, environmental, and economic reasons.  One significant way they can do this is by providing appropriate infrastructure, including formal on-road bicycle lanes.  It is important for policy makers to have access to accurate information about the existing bicycle network, in order to plan and prioritise upgrades.  Cyclists also benefit when good maps of the bicycle network are available to help them to plan their routes.  This thesis presents an approach to constructing a map of all bicycle lanes within a local area, based on computer analysis of street scene  images sourced from Google Street View or ``dash cam'' footage.
 
-TODO: technical and non-technical summaries of research
-
+% https://tex.stackexchange.com/questions/131460/remove-pagebreak-after-a-chapter-only-for-one-chapter
+\begingroup
+\renewcommand{\cleardoublepage}{}
+\renewcommand{\clearpage}{}
 \chapter*{Abstract}
+\endgroup
 
-Up to 200 words
-
-TODO: technical and non-technical summaries of research
+On-road bicycle lanes improve safety for cyclists, and encourage participation in cycling for active transport and recreation.  With many local authorities responsible for the infrastructure, official maps and datasets of bicycle lanes may be out-of-date and incomplete.  Even ``crowdsourced'' databases may have significant gaps, especially outside popular metropolitan areas.  This thesis presents a method to create a map of bicycle lanes in a local area by taking sample street scene images from each road,  and then applying a deep learning model that has been trained to recognise bicycle lane symbols.  The list of coordinates where bicycle  lanes were detected is then correlated to geospatial data about the road network to record bicycle lane routes.  The method was applied to successfully build a map for a local area in the outer suburbs of Melbourne.  It was able to identify bicycle lanes not previously recorded in the official State government dataset, OpenStreetMap, or the ``biking'' layer of Google Maps.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -110,31 +111,120 @@ TODO: technical and non-technical summaries of research
 \chapter{Introduction}
 \pagenumbering{arabic}
 
-\remark{TODO: clear research questions/aims/hypotheses}
+\remark{Criteria: clear research questions/aims/hypotheses}
 
-\remark{TODO: background knowledge}
+\remark{Criteria: background knowledge}
 
 The benefits of ``active transport'', such as walking and cycling, have been well documented in previous studies.  Participants' health may improve due to their increased physical activity.  There are environmental benefits due to reduced emissions and pollution.  And there are economic benefits, including a reduced burden on the health system, and reduced transportation costs for participants \cite{LEE2012219} \cite{RABL2012121}.
+
+Federal and State government policy makers in Australia therefore wish to encourage cycling \cite{federal_policy_2019} \cite{state_policy_2020}.  However, the share of cycling for trips to work in Melbourne is only 1.5\% \cite{melbactive}.  For many commuters, a perceived lack of safety of cycling is a major barrier to adoption.  Other significant factors are the availability of shared bicycle schemes and storage facilities, and the risk of theft \cite{WILSON2018234}.  Cycling infrastructure has a significant impact on real and perceived cyclist safety, and this research project will focus on that issue.  Important safety factors include the presence and width of a bicycle lane, the presence of on-street parking, downhill and uphill grades, and the quality of the road surface \cite{BIKESAFETY} \cite{Teschke2012}.  A comprehensive dataset of cycling infrastructure would help policy makers identify and prioritize areas in need of improvement to safety.
+
+In Victoria, Australia, the State government publishes a ``Principal Bicycle Network'' dataset to assist with planning \cite{PrincipalBicycleNetwork}, however it does not appear to be up-to-date.  Individual Local Government Areas may produce their own maps of bicycle routes, but availability is inconsistent \cite{vicroads_maps}.
+
+The aim of this research project was to investigate whether it is possible to construct a dataset or map of bicycle lanes in a local area, by collecting street scene images at known coordinates, and then using a ``deep learning'' machine learning model to detect locations where bicycle lanes are found.  If a baseline map of bicycle lanes can be built in this way, then the process could be extended in future to gather information about other significant factors, such as how frequently the bicycle lane is obstructed by parked vehicles, or the presence of debris or damage to the road surface.
+
+Google Street View has been chosen as a source of street scene image data due to its wide geographical coverage, and the accessibility of the data via a public API.  However, a significant limiting factor is that the Google Street View images for any given location might be several years out of date.  Therefore, the use of images collected from a ``dash cam'' was also explored.  A local government that is responsible for building and maintaining bicycle lanes could use dash cameras to gather its own images, at regular intervals, for more up-to-date data.
+
+\section{Research Questions}
+\begin{itemize}
+\item{RQ1: Can a ``deep learning'' machine learning model be used to identify on-road bicycle lanes in street scene images sourced from Google Street View?}
+\item{RQ2: Can the model then be used to detect and map bicycle lanes across all streets in a local area with Google Street View coverage?}
+\item{RQ3: Can a similar process be applied to street scene images collected from dash cameras?}
+\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Literature Review}
 
-\remark{TODO: literature review places research in context}
+\remark{Criteria: literature review places research in context}
 
-\remark{TODO: background knowledge}
+\remark{Criteria: background knowledge}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{A Section}
+\section{Motivation}
+
+Prior research has clearly shown health, economic, and environmental benefits from active transport.  Lee et al., 2012 \cite{LEE2012219} analysed World Health Organization survey data from 2008, and showed that physical inactivity significantly increased the relative risk of coronary heart disease, type 2 diabetes, breast cancer, colon cancer, and all-cause mortality, across dozens of countries.  Rabl \& de Nazelle, 2012 \cite{RABL2012121} demonstrated that active transport by walking or cycling improves those relative risks for participants.  Moderate to vigorous cycling activity for 5 hours a week reduced the all-cause mortality relative risk by more than 30\%.  They estimated an economic gain from improved participant health and reduced pollution, offset slightly by the cost of cycling accidents.
+
+In Australia, Federal and State governments are committed to the principle of supporting active transport through the provision of cycling infrastructure, declaring their commitment through public statements on their official websites \cite{federal_policy_2019} \cite{state_policy_2020}.  Many other governments around the world have adopted similar policies.
+
+Taylor \& Thompson, 2019 \cite{melbactive} surveyed the use of active transport in Melbourne, to establish a baseline of current commuter behaviour.  They found that cycling only accounted for 1.5\% of trips to work in the area.  It could therefore be argued that there is room for improvement.
+
+Schepers et al., 2015 \cite{SCHEPERS2015460} produced a summary of literature related to cycling infrastructure and how it can encourage active transport, resulting in the aforementioned benefits.  The paper found that providing cycling infrastructure that is perceived as being safer does encourage participation.  Other papers such as Wilson et al., 2018 \cite{WILSON2018234} agreed.
+
+Other researchers have examined which factors affect the perceived and actual safety of cycling routes, in a variety of settings.
+
+Klobucar \& Fricker, 2007 \cite{BIKESAFETY} surveyed a group of cyclists in Indiana, USA, asking them to ride a particular route and rate the safety of each road segment along the route, then asking them to review video footage of other routes and rate the safety of those routes, too.  A regression model was created to predict the cyclists' likely safety ratings for other routes.  The creation of the model led to a list of road segment characteristics that were apparently most influential in the area.
+
+Tescheke et al., 2012 \cite{Teschke2012} surveyed patients who attended hospital emergency rooms in Toronto and Vancouver in Canada, due to their involvement in a cycling accident.  Details of the circumstances of each accident were gathered, along with the outcomes.  The data was analysed to determine which factors increased (or decreased) the relative odds of a cyclist being involved in an accident.
+
+Malik et al., 2021 \cite{Malik2021} modelled cyclist safety in Tyne and Wear County in north-east England, a more rural setting.
+
+The factors that contribute to cyclist safety vary by locality.  For example, cyclists in one city might be concerned by the hazard of tram tracks, whereas this might not be a relevant concern in another city, or a less built-up area.  The common themes among the aforementioned papers were:
+\begin{itemize}
+\item{Presence and type of bicycle lane (dedicated, paved shoulder, none)}
+\item{Width of bicycle lane}
+\item{Presence of on-street parking}
+\item{Downhill or uphill grades}
+\item{Volume, speed, and vehicle type profile of motor vehicle traffic}
+\item{Quality of road surface (including drainage, tram tracks, etc.)}
+\item{Lighting}
+\item{Construction Work}
+\end{itemize}
+Most of these factors can be influenced by infrastructure and road design.  Therefore, it would be valuable to quantify as many of these factors as possible in a dataset, to assist policy makers in deciding what changes ought to be made, and where, to provide a safer network of cycling infrastructure.
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Applications of Machine Learning}
+
+``Deep Learning'' is a paradigm by which computational models can be constructed to tackle many problems, including visual object recognition.  A Deep Learning model can be trained to perform visual object recognition tasks by supplying it with a ``training'' dataset of images where the objects it must recognise have been pre-labelled.  During training, the model processes its training dataset over and over again, and with each iteration the weights in its multi-layer neural network are refined through the use of a ``backpropagation'' algorithm \cite{deeplearning}.  With a sufficient number of training ``epochs'', the model hopefully develops the ability to detect where the objects of interest appear in each image, to an acceptable level of performance.
+
+Tensorflow \cite{TENSORFLOW2016A} \cite{TENSORFLOW2016B} and PyTorch \cite{pytorch} are two dominant frameworks for building, training, evaluating, and applying Deep Learning models.  Within these frameworks, researchers have progressively developed new models for visual object recognition, typically with a focus on either improving the accuracy of the results, increasing speed to allow ``real time'' processing of video streams, or creating models that will work on low-cost hardware.  Significant Deep Learning models considered within this research project include:
+
+\begin{itemize}
+\item{Ren et al., 2015 \cite{REN2016} R-CNN}
+\item{Liu et al., 2016 \cite{ssd} SSD}
+\item{He et al., 2016 \cite{He_2016_CVPR} ResNet}
+\item{Redmon et al., 2016 \cite{YOLOv1} YOLO (and subsequent variants)}
+\item{Sandler et al., 2018 \cite{MobileNetV2} MobileNetV2}
+\item{Duan et al, 2019 \cite{centernet} CenterNet}
+\end{itemize}
+
+The Tensorflow 2 Model Garden \cite{zoo} provides access to many of these models, pre-trained on the COCO 17 (``Microsoft COCO: Common Objects in Context'') dataset.  It therefore provides a convenient library of Deep Learning models that have already received a significant amount of training for the general problem of visual object recognition, and can be re-used to recognise new classes of objects through a process of ``transfer learning'' \cite{coco} \cite{transferlearning}.
+
+Semantic image segmentation of street scene images is an important and active area of computer science research.  ``Deep Learning'' models that can understand sequences of images in real time are essential for self-driving vehicles or similar driver-assistance systems, so many papers have focussed on that area.  In order to train a Deep Learning model that specializes in understanding street scene images, a training dataset of street scene images is required.  Papers by Cordts et al., 2016 \cite{Cordts_2016_CVPR} and Zhou et al., 2019 \cite{ade20k} announced the publication of the ``Cityscapes'' and ``ade20k'' image datasets, respectively.  These datasets each contain many street scene images, with objects of interest labelled in a format suitable for training deep learning models to understand similar on-road scenarios.  Many papers have used these datasets in order to train new machine learning models.  Chen et al., 2018 \cite{DEEPLAB} is one example of a heavily-cited paper where ``CityScapes'' data has been used to train a ``real time'' model to understand street scene images.  Unfortunately, neither of the datasets has cycling infrastructure labelled.  The ``CityScapes'' dataset has labelled bicycle lanes under the ``sidewalks'' category.  This is useful to train a car not to drive there, but a cyclist might not be legally allowed to ride on a sidewalk designed for pedestrian traffic.  
+
+In another branch of research, deep learning tools have been used to manage roadside infrastructure and assets.  Campbell et al., 2019 \cite{CAMPBELL2019101350} used an ``SSD MobileNet'' model to detect ``Stop'' and ``Give Way'' signs on the side of the road in Google Street View images, to help build a database of road sign assets.  An application called ``RectLabel'' was used to label 500 sample images for each type of sign.  Photogrammetry was used to estimate a location for each detected sign, based on the Google Street View camera's position and optical characteristics and the bounding box of the detected sign.  Zhang et al., 2018 \cite{s18082484} performed a similar exercise, detecting road-side utility poles using a ``ResNet'' model.
+
+In Australia, the ``Supplement to Australian Standard AS 1742.9:2000'' sets out the official standards for how bicycle lanes must be constructed and marked.  Generally, a lane marking depicting a bicycle should be painted on the road inside the bicycle lane within 15 metres before and after each intersection, and at 200m intervals \cite{standards}.  Therefore, a Deep Learning model could be trained to detect these markings, similar to how Campbell et al., 2019 \cite{CAMPBELL2019101350} trained a model to detect road signs, and Zhang et al., 2018 \cite{s18082484} trained a model to detect utility poles, using pre-trained models from the TensorFlow 2 Model Garden \cite{zoo} as a starting point.
+
+The use of satellite imagery and aerial photographs were also considered.  Li et al., 2016 \cite{ROADNETWORK} showed that a road network could be extracted from satellite imagery using a convolutional neural network (CNN), and this is particularly useful in rural areas where maps are not already available.  However the resolution of publicly available satellite image data would not be sufficient to identify a bicycle lane on a road, and it would not be able to distinguish a standard bicycle lane from a wide paved shoulder.  Satellite imagery may have a role to play in detecting off-street bicycle tracks in ``green'' parkland area, but it was decided to exclude off-street routes from the scope of this research.
+
+Aerial photography may be useful, where it is available with sufficient detail.  However it would require a different data source for every jurisdiction.  Ning et al., 2021 \cite{NING2021} had success extracting sidewalks from local aerial photography using a ``YOLACT'' model.  Areas of uncertainty caused by tree cover were filled in using Google Street View images.  The model appeared to rely on a concrete sidewalk having a very different colour to the adjacent bitumen road.  The approach might not be able to distinguish bitumen bicycle lanes.  The road markings were not visible.
+
+Aside from formal bicycle lanes, cyclist safety can also be improved by an informal wide paved shoulder, or by creating lanes that are wide enough to safely accommodate a vehicle passing a cyclist.  It may be possible to detect and map these arrangements by recognising lane markings and road boundaries.  A common method of detecting lane boundaries is through the combination of a Canny edge detector \cite{canny} and a Hough transformation \cite{hough}.  The OpenCV library provides a frequently used implementation \cite{opencv}.  Where the Canny-Hough approach struggles with a poorly defined road boundary or ``noise'' from roadside objects, a Deep Learning approach may help:  Mamidala et al., 2019 \cite{8929655} used a ``CNN'' model to detect the outer boundary of roads in Google Street View images.
+
+During the literature review, one other paper was identified where the authors had applied Deep Learning techniques in the domain of cyclist safety:  Rita, 2020 \cite{rita_2020} used the ``MS Coco'' and ``CityScapes'' datasets to train ``YOLOv5'' and ``PSPNet101'' models to identify various classes of object (Bicycle, Car, Truck, Fire Hydrant, etc.) in Google Street View images of London.  A matrix of correlations between objects was calculated.  This was used to infer the circumstances where cyclists might feel the most safe.  For example, there was a high correlation between ``Person'' and ``Bicycle'' which ``suggests pedestrians and cyclists feel safe occupying the same space''.  This is a complimentary approach that might serve to help policy makers to identify where there might be demand for better infrastructure.
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Available Cycling Infrastructure Datasets and Standards}
+
+In Victoria, the State Government started publishing an official ``Principal Bicycle Network'' dataset on \url{data.gov.au} in 2020 \cite{PrincipalBicycleNetwork}.  It includes ``existing'' and ``planned'' bicycle routes.  There is a field to record the width of a bicycle lane to the nearest metre, but it is not always populated.  Many entries have been marked as last being ``validated'' in 2014, or not at all.  The dataset only covers formal bicycle lanes, so it excludes roads where the cyclist may ride on a less formal paved shoulder.  During the course of the research, it was found that some existing bicycle lanes are still marked as ``planned'', or not listed at all, and in some country areas the routes appeared to be paved shoulders rather than standard bicycle routes.
+
+``OpenStreetMap'' \cite{OPENSTREETMAP} is a source of crowd-sourced map data.  It provides detailed information aabout roads with and without bicycle lanes.  It supports ``cycleway'' tags where contributors can mark not just where a bicycle lane is, but its attributes, such as whether it is shared with public transport, whether there is a specially marked area for cyclists to stop at intersections, and how wide the bicycle lane is.  Given that the data is crowd-sourced, the quality and availability of the data may vary by location.
+
+``Google Maps'' provides a ``bicycle layer''.  This includes off-street bicycle paths and on-street bicycle lanes.  It only gives a ``yes'' or ``no'' opinion about whether a route is especially suited to bicycles, with no further information provided.  But that may be of assistance in scouting locations to use in a training dataset of Google Street View images.
+
+Other services such as ``Strava'' and ``Trailforks.com'' hold data that cyclists have recorded about their rides.  These may be useful to assess the popularity of routes, and perhaps infer where upgrades would be welcomed, or where there might be an existing route that should be checked and added to a dataset.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Methods}
 
-\remark{TODO: clear and accurate description of methods}
+\remark{Criteria: clear and accurate description of methods}
 
-\remark{TODO: sufficient detail to allow reproduction of results}
+\remark{Criteria: sufficient detail to allow reproduction of results}
 
-\remark{TODO: awareness and critical evaluation of alternatives}
+\remark{Criteria: awareness and critical evaluation of alternatives}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Another Section}
@@ -142,15 +232,15 @@ The benefits of ``active transport'', such as walking and cycling, have been wel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Results and Discussion}
 
-\remark{TODO: clear and complete presentation of results}
+\remark{Criteria: clear and complete presentation of results}
 
-\remark{TODO: sufficient quantity of work}
+\remark{Criteria: sufficient quantity of work}
 
-\remark{TODO: appropriate intellectual level}
+\remark{Criteria: appropriate intellectual level}
 
-\remark{TODO: appropriate consideration of evidence in discussion}
+\remark{Criteria: appropriate consideration of evidence in discussion}
 
-\remark{TODO: uncertainty/error analysis}
+\remark{Criteria: uncertainty/error analysis}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Yet Another Section}
@@ -158,9 +248,9 @@ The benefits of ``active transport'', such as walking and cycling, have been wel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
 
-\remark{TODO: conclusions are supported by the observations/results/calculations}
+\remark{Criteria: conclusions are supported by the observations/results/calculations}
 
-\remark{TODO: conclusions relate to the original research questions/aims/hypotheses}
+\remark{Criteria: conclusions relate to the original research questions/aims/hypotheses}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix

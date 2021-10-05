@@ -118,7 +118,7 @@ Hopefully given they were very successful identifying the stop/give way signs, i
 	year = {2008},
 	Bdsk-Url-1 = {https://doi.org/10.1109/MPRV.2008.80}}
 
-@misc{paszke2019pytorch,
+@misc{pytorch,
 	annote = {Influential paper about PyTorch},
 	archiveprefix = {arXiv},
 	author = {Adam Paszke and Sam Gross and Francisco Massa and Adam Lerer and James Bradbury and Gregory Chanan and Trevor Killeen and Zeming Lin and Natalia Gimelshein and Luca Antiga and Alban Desmaison and Andreas K{\"o}pf and Edward Yang and Zach DeVito and Martin Raison and Alykhan Tejani and Sasank Chilamkurthy and Benoit Steiner and Lu Fang and Junjie Bai and Soumith Chintala},
@@ -578,7 +578,7 @@ The introduction of bicycle paths and lanes is likely to be associated with heal
 	Bdsk-Url-1 = {https://www.sciencedirect.com/science/article/pii/S2214140515006842},
 	Bdsk-Url-2 = {https://doi.org/10.1016/j.jth.2015.09.004}}
 
-@misc{as1742,
+@misc{standards,
 	annote = {Standards for where/how Bike lanes are marked.
 
 This will serve as a guide for how I gather a training dataset, and where I need to sample a road to determine whether there is a lane or not.  From one image, it might be obvious that there is a narrow lane, but I might need to sample 100m further down the road, or close to the nearest intersection, to find the bike symbol.},
@@ -677,3 +677,149 @@ https://stackoverflow.com/questions/45322630/how-to-detect-lines-in-opencv},
 	title = {VIC DELWP - Vicmap Address (Points)},
 	url = {https://data.gov.au/dataset/ds-aurin-aurin\%3Adatasource-VIC\_Govt\_DELWP-VIC\_Govt\_DELWP\_datavic\_VMADD\_ADDRESS/details?q=address\%20database},
 	year = {2021}}
+
+@misc{vicroads_maps, title={Bicycle and walking route maps}, url={https://www.vicroads.vic.gov.au/traffic-and-road-use/cycling/bicycle-route-maps}, journal={VicRoads}, year={2021}, month={Aug}}
+
+@InProceedings{centernet,
+author = {Duan, Kaiwen and Bai, Song and Xie, Lingxi and Qi, Honggang and Huang, Qingming and Tian, Qi},
+title = {CenterNet: Keypoint Triplets for Object Detection},
+booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+month = {October},
+year = {2019}
+}
+
+
+@InProceedings{ssd,
+author="Liu, Wei
+and Anguelov, Dragomir
+and Erhan, Dumitru
+and Szegedy, Christian
+and Reed, Scott
+and Fu, Cheng-Yang
+and Berg, Alexander C.",
+editor="Leibe, Bastian
+and Matas, Jiri
+and Sebe, Nicu
+and Welling, Max",
+title="SSD: Single Shot MultiBox Detector",
+booktitle="Computer Vision -- ECCV 2016",
+year="2016",
+publisher="Springer International Publishing",
+address="Cham",
+pages="21--37",
+abstract="We present a method for detecting objects in images using a single deep neural network. Our approach, named SSD, discretizes the output space of bounding boxes into a set of default boxes over different aspect ratios and scales per feature map location. At prediction time, the network generates scores for the presence of each object category in each default box and produces adjustments to the box to better match the object shape. Additionally, the network combines predictions from multiple feature maps with different resolutions to naturally handle objects of various sizes. SSD is simple relative to methods that require object proposals because it completely eliminates proposal generation and subsequent pixel or feature resampling stages and encapsulates all computation in a single network. This makes SSD easy to train and straightforward to integrate into systems that require a detection component. Experimental results on the PASCAL VOC, COCO, and ILSVRC datasets confirm that SSD has competitive accuracy to methods that utilize an additional object proposal step and is much faster, while providing a unified framework for both training and inference. For {\$}{\$}300 {\backslash}times 300{\$}{\$}300{\texttimes}300input, SSD achieves 74.3 {\%} mAP on VOC2007 test at 59 FPS on a Nvidia Titan X and for {\$}{\$}512 {\backslash}times 512{\$}{\$}512{\texttimes}512input, SSD achieves 76.9 {\%} mAP, outperforming a comparable state of the art Faster R-CNN model. Compared to other single stage methods, SSD has much better accuracy even with a smaller input image size. Code is available at https://github.com/weiliu89/caffe/tree/ssd.",
+isbn="978-3-319-46448-0"
+}
+
+@InProceedings{MobileNetV2,
+author = {Sandler, Mark and Howard, Andrew and Zhu, Menglong and Zhmoginov, Andrey and Chen, Liang-Chieh},
+title = {MobileNetV2: Inverted Residuals and Linear Bottlenecks},
+booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+month = {June},
+year = {2018}
+}
+
+@misc{zoo,
+  author = {Hongkun Yu and Chen Chen and Xianzhi Du and Yeqing Li and
+            Abdullah Rashwan and Le Hou and Pengchong Jin and Fan Yang and
+            Frederick Liu and Jaeyoun Kim and Jing Li},
+  title = {{TensorFlow Model Garden}},
+  howpublished = {\url{https://github.com/tensorflow/models}},
+  year = {2020}
+}
+
+@Article{deeplearning,
+author={LeCun, Yann
+and Bengio, Yoshua
+and Hinton, Geoffrey},
+title={Deep learning},
+journal={Nature},
+year={2015},
+month={May},
+day={01},
+volume={521},
+number={7553},
+pages={436-444},
+abstract={Deep learning allows computational models that are composed of multiple processing layers to learn representations of data with multiple levels of abstraction. These methods have dramatically improved the state-of-the-art in speech recognition, visual object recognition, object detection and many other domains such as drug discovery and genomics. Deep learning discovers intricate structure in large data sets by using the backpropagation algorithm to indicate how a machine should change its internal parameters that are used to compute the representation in each layer from the representation in the previous layer. Deep convolutional nets have brought about breakthroughs in processing images, video, speech and audio, whereas recurrent nets have shone light on sequential data such as text and speech.},
+issn={1476-4687},
+doi={10.1038/nature14539},
+url={https://doi.org/10.1038/nature14539}
+}
+
+
+@InProceedings{YOLOv1,
+author = {Redmon, Joseph and Divvala, Santosh and Girshick, Ross and Farhadi, Ali},
+title = {You Only Look Once: Unified, Real-Time Object Detection},
+booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+month = {June},
+year = {2016}
+}
+
+@InProceedings{coco,
+author="Lin, Tsung-Yi
+and Maire, Michael
+and Belongie, Serge
+and Hays, James
+and Perona, Pietro
+and Ramanan, Deva
+and Doll{\'a}r, Piotr
+and Zitnick, C. Lawrence",
+editor="Fleet, David
+and Pajdla, Tomas
+and Schiele, Bernt
+and Tuytelaars, Tinne",
+title="Microsoft COCO: Common Objects in Context",
+booktitle="Computer Vision -- ECCV 2014",
+year="2014",
+publisher="Springer International Publishing",
+address="Cham",
+pages="740--755",
+abstract="We present a new dataset with the goal of advancing the state-of-the-art in object recognition by placing the question of object recognition in the context of the broader question of scene understanding. This is achieved by gathering images of complex everyday scenes containing common objects in their natural context. Objects are labeled using per-instance segmentations to aid in precise object localization. Our dataset contains photos of 91 objects types that would be easily recognizable by a 4 year old. With a total of 2.5 million labeled instances in 328k images, the creation of our dataset drew upon extensive crowd worker involvement via novel user interfaces for category detection, instance spotting and instance segmentation. We present a detailed statistical analysis of the dataset in comparison to PASCAL, ImageNet, and SUN. Finally, we provide baseline performance analysis for bounding box and segmentation detection results using a Deformable Parts Model.",
+isbn="978-3-319-10602-1"
+}
+
+@ARTICLE{transferlearning,
+  author={Pan, Sinno Jialin and Yang, Qiang},
+  journal={IEEE Transactions on Knowledge and Data Engineering}, 
+  title={A Survey on Transfer Learning}, 
+  year={2010},
+  volume={22},
+  number={10},
+  pages={1345-1359},
+  doi={10.1109/TKDE.2009.191}}
+
+@ARTICLE{canny,
+  author={Canny, John},
+  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence}, 
+  title={A Computational Approach to Edge Detection}, 
+  year={1986},
+  volume={PAMI-8},
+  number={6},
+  pages={679-698},
+  doi={10.1109/TPAMI.1986.4767851}}
+
+@article{hough,
+author = {Duda, Richard O. and Hart, Peter E.},
+title = {Use of the Hough Transformation to Detect Lines and Curves in Pictures},
+year = {1972},
+issue_date = {Jan. 1972},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {15},
+number = {1},
+issn = {0001-0782},
+url = {https://doi.org/10.1145/361237.361242},
+doi = {10.1145/361237.361242},
+abstract = {Hough has proposed an interesting and computationally efficient procedure for detecting
+lines in pictures. This paper points out that the use of angle-radius rather than
+slope-intercept parameters simplifies the computation further. It also shows how the
+method can be used for more general curve fitting, and gives alternative interpretations
+that explain the source of its efficiency.},
+journal = {Commun. ACM},
+month = jan,
+pages = {11–15},
+numpages = {5},
+keywords = {picture processing, colinear points, Hough transformation, pattern recognition, line detection, point-line transformation, curve detection}
+}
+
+@misc{opencv, title={Hough Transform using OpenCV}, url={https://learnopencv.com/hough-transform-with-opencv-c-python/}, journal={LearnOpenCV}, author={Bapat, Krutika}, year={2021}, month={May}}
