@@ -1,4 +1,4 @@
-.iypnb_checkpoints
+iypnb_checkpoints
 */.ipynb_checkpoints/*
 data_sources/australia-latest.osm.pbf
 */__pycache__
@@ -25,4 +25,9 @@ data_sources/dashcam_tour_mount_eliza/*.NMEA
 data_sources/dashcam_tour_mount_eliza/split/*.png
 data_sources/dashcam_tour_mount_eliza/split/lanes/*.png
 data_sources/dashcam_tour_mount_eliza/split/lanes_filtered/*.png
-
+*.toc
+*.aux
+*.log
+.DS_Store
+report/.DS_Store
+report/*.log

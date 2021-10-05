@@ -235,6 +235,7 @@ This section describes the methodology that was used to address each of the rese
 
 For detailed instructions on how to reproduce the results using the source code and data provided, please refer to the accompanying appendices.
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
 
 A review of the relevant Australian standards for bicycle lanes \cite{standards}, combined with local knowledge, suggested that the best way to search for bicycle lanes in street scene images would be to train a model to search for the bicycle lane markings that are painted on the road surface.  See figure \ref{fig:symbol}.  This marking is universal across all standard bicycle lanes in Australia, and can distinguish a bicycle lane from other types of road segment.  The symbol may appear sometimes appear on a green surface, and occasionally it may be partially occluded due to limited space or wear and tear.  Similar symbols exist in many other jurisdictions outside Australia.
@@ -276,6 +277,7 @@ A local instance of Nominatim was installed because the terms of use for public 
 Once intersections were identified from the OpenStreetMap data, it proved to be helpful to also calculate an approximate heading along the bicycle lane route at each intersection, to ensure that Google Street View images could be requested with the camera facing in a sensible direction.  The heading from one point to the next can be calculated using the Python "geographiclib" library.  Therefore the heading at the intersection was calculated to be the average of the heading from the previous ``node'' on the ``way'' to the intersection node and the heading from the intersection node to the next node.
 
 \subsubsection{Downloading sample Google Street View images for the training dataset}
+\label{s:sample}
 
 Google provides an API for downloading Google Street View images of up to 640x640 pixels, at a cost of 7 USD per 1,000 images \cite{gsv_billing}.  The ``\texttt{google\char`_streetview}'' library was used to facilitate access to this API from Python code.  In order to minimise costs, whenever an image was downloaded via the API, a copy of the image and its associated metadata was cached locally, so that additional costs would not be incurred if a request was made for the same image at a later date.
 
@@ -297,44 +299,50 @@ The Jupyter Notebook allowed multiple candidate intersections to be assessed per
 Please see Appendix \ref{a:download_gsv} for detailed instructions on how to use the supplied Jupyter Notebook to download Google Street View images for sample intersections, and flag matching images for inclusion in the labelled training dataset.
 
 \subsubsection{Labelling the training dataset}
+\label{s:label}
 
 Once a suitable number of Google Street View images containing bicycle lane markings were collected, they were copied to a folder and then labelled using the open-source tool "labelImg" \cite{labelImg}.  Please refer to the tool's official documentation for installation and usage instructions.  The output of the tool was an XML file corresponding to the each original image file in the folder, in a format that could be understood by TensorFlow 2 training tools and scripts.
 
 \subsection{Training and evaluating candidate models from the TensorFlow 2 Model Garden}
 
+Training and evaluation of candidate models was conducted on a local computer that was already available, as described in Appendix \ref{a:computer}.  This task could also be performed on cloud-based infrastructure such as Google Collab, if required.  For general directions on how to set up a local computer to enable TensorFlow machine learning that takes advantage of GPU acceleration, please see Appendix \ref{a:setupenv}, for find the latest tutorials and guides online.
 
+The training dataset that was collected in section \ref{s:sample} and labelled in section \ref{s:label} was randomly split into ``training'' and ``testing'' datasets according to an 80:20 ratio, using a ``bash'' shell script.
 
+A Jupyter notebook was used to set up the experiment, by transforming the labelled image datasets into TensorFlow records, downloading and configuring a pre-trained model from the TensorFlow 2 Model Garden, and creating scripts to train and evaluate the model.
 
+During the training process, the TensorFlow training script showed the ``loss'' performance after every 100 epochs, and the performance gradually improved as more training was conducted over the dataset.  Every few thousand epochs, the training was paused so that the model's performance could be evaluated against the withheld ``test'' datasets.  When training reached the point that any further epochs yielded greatly diminished returns, the training for the model was terminated, and it was compared to other candidate models.  As part of the evaluation process, image files were output containing the original image plus an overlay where the bounding boxes and ``confidence'' score of any detections were drawn.  These were inspected by quickly browsing through the images to confirm that the bicycle lane markings were being accurately located within each image, and any false positives or false negatives were understood.  An output CSV file was also created as part of the process, to record the coordinates and other location details of each image where a bicycle lane marking was detected.
+
+Multiple pre-trained models from the TensorFlow 2 Model Garden were trialled, with selections guided by their published ``Speed'' and ``COCO mAP'' (mean Average Precision) metrics.  The process of building a map of bicycle lanes for an area can be considered a ``batch'' process, with no fixed time constraints, therefore Mean Average Precision was prioritized over speed.
+
+Please refer to Appendix \ref{a:tensorflow_training} for detailed instructions on how to reproduce the training process.
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ2: Building a map of bicycle lane routes from detection coordinates}
 
+\remark{Iterating over all streets in an area}
 
+\remark{Transforming detection coordinates into routes}
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ3: Applying the process to dash camera footage}
 
+\remark{Gathering data from dash cam}
 
-Gathering a training dataset of GSV images
+\remark{Preliminary results without retraining}
 
-- Using PBN
-- Using OSM
+\remark{Re-training model to include dash cam images}
 
-Training and evaluating a Deep Learning model
-
-Transforming detection coordinates into routes
-
-Gathering data from dash cam
-
-Preliminary results
-
-Re-training model to include dash cam images
-
-Handling false positives and refining the training dataset
-
-Detecting lane markings and the next lane over
-
-Transforming lane marking data into routes
+\remark{Handling false positives and refining the training dataset}
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{Another Section}
+\section{Extension: Detecting and mapping paved shoulders}
+
+\remark{Detecting lane markings and the next lane over}
+
+\remark{Transforming lane marking data into routes}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Results and Discussion}
@@ -358,9 +366,6 @@ Discuss the limitations of GSV
 Compare to use of dash camera
 - More current
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{Yet Another Section}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
 
@@ -375,12 +380,12 @@ Compare to use of dash camera
 
 Two computers were used
 
-\section{Machine Learning computer}
+\section{Machine Learning workstation}
 \label{a:computer}
 
 xxx
 
-\section{Nominatim computer}
+\section{Nominatim server}
 \label{a:nominatim}
 
 xxx
@@ -410,6 +415,20 @@ xxx
 
 xxx
 
+\chapter{Applying model to Google Street View images over a local area}
+\label{a:apply_gsv}
+
+xxx
+
+\chapter{Applying model to Dash Camera footage}
+\label{a:apply_dashcam}
+
+xxx
+
+\chapter{Detecting paved shoulders from Dash Camera footage}
+\label{a:lane_detection}
+
+xxx
 
 \cleardoublepage
 \bibliographystyle{IEEEtran}
