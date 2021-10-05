@@ -3,8 +3,10 @@
 % S.M.M. (Saied) Tahaghoghi, 2004
 
 \documentclass[11pt,twoside]{report}
-
 \usepackage{a4wide,caption,epsfig,fancyheadings,url}
+\usepackage{graphicx}
+\graphicspath{ {./Figs/} }
+\setcounter{secnumdepth}{3}
 
 % Place the correct values here
 %Set to the original submission date when submitted amended thesis
@@ -84,6 +86,7 @@ To Dr. Sophie Bittinger, Dr. Logan Bittinger, Laura Pritchard, and Dr. Curtis Sa
 \item{Revisit abstract to update the scope of results based on any other suburbs tested}
 \item{Repetitive language between Summary and Abstract ``this thesis presents''}
 \item{I'm sure I had a better paper on road boundary detection, find it!}
+\item{Thesis examples have ``Contribution'' and ``Organisation'' sections}
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -129,7 +132,7 @@ Google Street View has been chosen as a source of street scene image data due to
 \begin{itemize}
 \item{RQ1: Can a ``deep learning'' machine learning model be used to identify on-road bicycle lanes in street scene images sourced from Google Street View?}
 \item{RQ2: Can the model then be used to detect and map bicycle lanes across all streets in a local area with Google Street View coverage?}
-\item{RQ3: Can a similar process be applied to street scene images collected from dash cameras?}
+\item{RQ3: Can a similar process be applied to street scene images collected from dash camera video footage?}
 \end{itemize}
 
 
@@ -202,7 +205,7 @@ Aerial photography may be useful, where it is available with sufficient detail. 
 
 Aside from formal bicycle lanes, cyclist safety can also be improved by an informal wide paved shoulder, or by creating lanes that are wide enough to safely accommodate a vehicle passing a cyclist.  It may be possible to detect and map these arrangements by recognising lane markings and road boundaries.  A common method of detecting lane boundaries is through the combination of a Canny edge detector \cite{canny} and a Hough transformation \cite{hough}.  The OpenCV library provides a frequently used implementation \cite{opencv}.  Where the Canny-Hough approach struggles with a poorly defined road boundary or ``noise'' from roadside objects, a Deep Learning approach may help:  Mamidala et al., 2019 \cite{8929655} used a ``CNN'' model to detect the outer boundary of roads in Google Street View images.
 
-During the literature review, one other paper was identified where the authors had applied Deep Learning techniques in the domain of cyclist safety:  Rita, 2020 \cite{rita_2020} used the ``MS Coco'' and ``CityScapes'' datasets to train ``YOLOv5'' and ``PSPNet101'' models to identify various classes of object (Bicycle, Car, Truck, Fire Hydrant, etc.) in Google Street View images of London.  A matrix of correlations between objects was calculated.  This was used to infer the circumstances where cyclists might feel the most safe.  For example, there was a high correlation between ``Person'' and ``Bicycle'' which ``suggests pedestrians and cyclists feel safe occupying the same space''.  This is a complimentary approach that might serve to help policy makers to identify where there might be demand for better infrastructure.
+During the literature review, one other paper was identified where the authors had applied Deep Learning techniques in the domain of cyclist safety:  Rita, 2020 \cite{rita_2020} used the ``MS Coco'' and ``CityScapes'' datasets to train ``YOLOv5'' and ``PSPNet101'' models to identify various classes of object (Bicycle, Car, Truck, Fire Hydrant, etc.) in Google Street View images of London.  A matrix of correlations between objects was calculated.  This was used to infer the circumstances where cyclists might feel the most safe.  For example, there was a high correlation between ``Person'' and ``Bicycle'' which ``suggests pedestrians and cyclists feel safe occupying the same space''.  This is a complimentary approach that might serve to help policy makers to identify where there is demand for better infrastructure.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -226,6 +229,110 @@ Other services such as ``Strava'' and ``Trailforks.com'' hold data that cyclists
 
 \remark{Criteria: awareness and critical evaluation of alternatives}
 
+This section describes the methodology that was used to address each of the research questions.
+
+\remark{Comment on where to find github repository of code, where to find original source dashcam videos and GSV training image lists}
+
+For detailed instructions on how to reproduce the results using the source code and data provided, please refer to the accompanying appendices.
+
+\section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
+
+A review of the relevant Australian standards for bicycle lanes \cite{standards}, combined with local knowledge, suggested that the best way to search for bicycle lanes in street scene images would be to train a model to search for the bicycle lane markings that are painted on the road surface.  See figure \ref{fig:symbol}.  This marking is universal across all standard bicycle lanes in Australia, and can distinguish a bicycle lane from other types of road segment.  The symbol may appear sometimes appear on a green surface, and occasionally it may be partially occluded due to limited space or wear and tear.  Similar symbols exist in many other jurisdictions outside Australia.
+
+\begin{figure}[h]
+\centering
+\includegraphics{f001_symbol.png}
+\caption{Example bicycle lane marking.  Source: Google Street View, Oct 2019}
+\label{fig:symbol}
+\end{figure}
+
+Therefore, in order to identify bicycle lanes in Google Street View images, it was necessary to first create a dataset of labelled images for training and validation, and then use it to train and evaluate Deep Learning models, using pre-trained models from the ``TensorFlow 2 Model Garden'' and transfer learning.
+
+\subsection{Gathering a training dataset of Google Street View images}
+
+A collection of Google Street View images containing bicycle lane markings was required, to train the Deep Learning models.  The relevant Australian standards specify that these markings should appear within 15m of each intersection \cite{standards}.  Therefore, intersections along known bicycle lane routes were the most likely locations to search for example images.
+
+Campbell et al., 2019 \cite{CAMPBELL2019101350} found success training a Deep Learning model to recognise ``Stop'' and ``Give Way'' signs with 500 example images of each.  Therefore, an initial dataset of 500 bicycle lane marking images was required, with an option to gather more images if necessary.
+
+A tool was required to efficiently gather sample images from Google Street View for intersections along known bike paths, and record which images contained the required markings.  These images could then be labelled using another tool, to record the precise bounding box around each bicycle lane marking in the images.
+
+\subsubsection{Identifying candidate intersections to sample}
+
+The two candidate sources of information about ``known'' bicycle lane routes that were considered were the ``Principal Bicycle Network'' dataset \cite{PrincipalBicycleNetwork} and XML extracts from the OpenStreetMap database \cite{OPENSTREETMAP}.  The Principal Bicycle Network dataset was used to identify candidate intersections due to its age:  If it was last updated several years ago, then there was less risk that an intersection being sampled would be missing bicycle lane markings in the Google Street View images due to the age of the available Google Street View data.  However, the OpenStreetMap approach has the advantage that it would work for other jurisdictions, and it proved to be less complex.
+
+Tools were created to generate candidate intersection lists for both approaches.  Instructions on how to use them are documented in Appendix \ref{a:sample_pbn} and Appendix \ref{a:sample_osm}.
+
+Working from an XML extract of the OpenStreetMap database is the simplest approach.  Data can be downloaded for an individual country via \url{https://download.geofabik.de} and then sliced into a smaller area, if necessary, using the ``osmium'' command line tool from \url{https://osmcode.org/osmium-tool/}.  Once downloaded, the XML contains ``ways'', which represent road segments, and ``nodes'', which represent strings of coordinates that make up the ``ways''.  If a ``way'' contains a ``cycleway'' tag, then it has a bicycle lane.  If a ``node'' is included in multiple ``ways'' then it is an intersection.  So the process is to identify ``ways'' with a ``cycleway'' tag, and then search the list of ``nodes'' in that way to see which ones are shared with any other ``way'' with a different name.
+
+Working from the Principal Bicycle Network dataset is more complicated, and it still requires an XML extract of OpenStreetMap data to identify the intersections.  The Principal Bicycle Network dataset contains start and end coordinates for each segment of road where there ss an existing bicycle lane.  But it does not consistently include the name of the road, and it never included the town or suburb, nor any information about intersections.  To solve this problem, the following approach was taken:
+
+\begin{enumerate}
+\item{For each co-ordinate in the Principal Bicycle Network dataset, use a local ``Nominatim'' server instance to determine the name of the road and the town or suburb, via a ``reverse-geocoding'' operation.}
+\item{For each named road and town or suburb in the reverse-geocoded dataset, use an XML extract of OpenStreetMap data for the area to identify intersecting roads.  Use a bounding box around the original route coordinates in order to eliminate false intersections for roads with the same name in a different town.}	
+\end{enumerate}
+
+A local instance of Nominatim was installed because the terms of use for public Nominatim server instances actively discourage bulk operations.  It was set up on a local machine as per Appendix \ref{a:computer} according to the official instructions \cite{nominatim_install}.
+
+Once intersections were identified from the OpenStreetMap data, it proved to be helpful to also calculate an approximate heading along the bicycle lane route at each intersection, to ensure that Google Street View images could be requested with the camera facing in a sensible direction.  The heading from one point to the next can be calculated using the Python "geographiclib" library.  Therefore the heading at the intersection was calculated to be the average of the heading from the previous ``node'' on the ``way'' to the intersection node and the heading from the intersection node to the next node.
+
+\subsubsection{Downloading sample Google Street View images for the training dataset}
+
+Google provides an API for downloading Google Street View images of up to 640x640 pixels, at a cost of 7 USD per 1,000 images \cite{gsv_billing}.  The ``\texttt{google\char`_streetview}'' library was used to facilitate access to this API from Python code.  In order to minimise costs, whenever an image was downloaded via the API, a copy of the image and its associated metadata was cached locally, so that additional costs would not be incurred if a request was made for the same image at a later date.
+
+The API allows images to be requested for a location (latitude/longitude) with a desired heading, field-of-view angle, and camera angle relative to the ``horizon''.  A Jupyter Notebook was created to:
+
+\begin{enumerate}
+	\item{Select a sample location and heading from a CSV of candidate intersections.}
+	\item{Download four Google Street View images at 0, 90, 180, and 270 degrees relative to the desired heading, with a 90 degree field of view for each image, and the camera angled 30 degrees towards the ground to focus on any nearby road markings.}
+	\item{Allow the operator to quickly record which of the four images they see a bicycle lane marking in, so that it can be saved to a list of images to be labelled and included in the training dataset.}
+	\item{Repeat.}
+\end{enumerate}
+
+It was found that the best location to look for a bicycle lane marking was not always right in the middle of an intersection, especially for large intersections.  Therefore, the option was added to allow the operator to ``browse'' a desired number of metres before or after the intersection, along the route heading, to find a good image.  If a bicycle lane marking appeared at the intersection, typically it could be found within 20-30m.
+
+Generally, an image was accepted for inclusion in the training dataset if the bicycle lane marking was close and clear enough to be unambiguous without taking cues from the overall scene context.  The shape of the bicycle had to be visible.  If the symbol was so far away that it looked like a white blob on the road, and it could only be understood to be a bicycle lane marking by looking at how it was placed relative lane markings, then the image was not included, though the operator had the option of moving the camera close to it for a better look in a different image.
+
+The Jupyter Notebook allowed multiple candidate intersections to be assessed per minute, and an initial set of 500 images was collected over the course of approximately 4 hours.
+
+Please see Appendix \ref{a:download_gsv} for detailed instructions on how to use the supplied Jupyter Notebook to download Google Street View images for sample intersections, and flag matching images for inclusion in the labelled training dataset.
+
+\subsubsection{Labelling the training dataset}
+
+Once a suitable number of Google Street View images containing bicycle lane markings were collected, they were copied to a folder and then labelled using the open-source tool "labelImg" \cite{labelImg}.  Please refer to the tool's official documentation for installation and usage instructions.  The output of the tool was an XML file corresponding to the each original image file in the folder, in a format that could be understood by TensorFlow 2 training tools and scripts.
+
+\subsection{Training and evaluating candidate models from the TensorFlow 2 Model Garden}
+
+
+
+
+\section{RQ2: Building a map of bicycle lane routes from detection coordinates}
+
+
+\section{RQ3: Applying the process to dash camera footage}
+
+
+Gathering a training dataset of GSV images
+
+- Using PBN
+- Using OSM
+
+Training and evaluating a Deep Learning model
+
+Transforming detection coordinates into routes
+
+Gathering data from dash cam
+
+Preliminary results
+
+Re-training model to include dash cam images
+
+Handling false positives and refining the training dataset
+
+Detecting lane markings and the next lane over
+
+Transforming lane marking data into routes
+
+
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Another Section}
 
@@ -242,6 +349,15 @@ Other services such as ``Strava'' and ``Trailforks.com'' hold data that cyclists
 
 \remark{Criteria: uncertainty/error analysis}
 
+Discuss the limitations of GSV
+- Time
+- Bad luck with obstructions
+- Position of camera
+- Cost
+
+Compare to use of dash camera
+- More current
+
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Yet Another Section}
 
@@ -254,7 +370,46 @@ Other services such as ``Strava'' and ``Trailforks.com'' hold data that cyclists
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
-\chapter{Testbed Configuration}
+\chapter{Computer Environment}
+\label{a:environment}
+
+Two computers were used
+
+\section{Machine Learning computer}
+\label{a:computer}
+
+xxx
+
+\section{Nominatim computer}
+\label{a:nominatim}
+
+xxx
+
+\chapter{Identifying candidate intersections to sample based on cycleways in an OpenStreetMap XML extract}
+\label{a:sample_osm}
+
+xxx
+
+\chapter{Identifying candidate intersections to sample based on existing bicycle lanes in the Principal Bicycle Network dataset}
+\label{a:sample_pbn}
+
+xxx
+
+\chapter{Downloading and flagging sample Google Street View images for the training dataset}
+\label{a:download_gsv}
+
+xxx
+
+\chapter{General directions on setting up a local TensorFlow 2 development environment}
+\label{a:setupenv}
+
+xxx
+
+\chapter{Training and evaluating a Deep Learning model from the Tensorflow 2 Model Garden}
+\label{a:tensorflow_training}
+
+xxx
+
 
 \cleardoublepage
 \bibliographystyle{IEEEtran}
