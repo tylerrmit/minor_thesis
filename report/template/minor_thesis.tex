@@ -87,6 +87,7 @@ To Dr. Sophie Bittinger, Dr. Logan Bittinger, Laura Pritchard, and Dr. Curtis Sa
 \item{Repetitive language between Summary and Abstract ``this thesis presents''}
 \item{I'm sure I had a better paper on road boundary detection, find it!}
 \item{Thesis examples have ``Contribution'' and ``Organisation'' sections}
+\item{Insert example GSV detection image}
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -114,9 +115,9 @@ On-road bicycle lanes improve safety for cyclists, and encourage participation i
 \chapter{Introduction}
 \pagenumbering{arabic}
 
-\remark{Criteria: clear research questions/aims/hypotheses}
+\remark{Criteria 15: clear research questions/aims/hypotheses}
 
-\remark{Criteria: background knowledge}
+\remark{Criteria 15: background knowledge}
 
 The benefits of ``active transport'', such as walking and cycling, have been well documented in previous studies.  Participants' health may improve due to their increased physical activity.  There are environmental benefits due to reduced emissions and pollution.  And there are economic benefits, including a reduced burden on the health system, and reduced transportation costs for participants \cite{LEE2012219} \cite{RABL2012121}.
 
@@ -139,9 +140,9 @@ Google Street View has been chosen as a source of street scene image data due to
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Literature Review}
 
-\remark{Criteria: literature review places research in context}
+\remark{Criteria 15: literature review places research in context}
 
-\remark{Criteria: background knowledge}
+\remark{Criteria 15: background knowledge}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Motivation}
@@ -223,11 +224,11 @@ Other services such as ``Strava'' and ``Trailforks.com'' hold data that cyclists
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Methods}
 
-\remark{Criteria: clear and accurate description of methods}
+\remark{Criteria 15: clear and accurate description of methods}
 
-\remark{Criteria: sufficient detail to allow reproduction of results}
+\remark{Criteria 15: sufficient detail to allow reproduction of results}
 
-\remark{Criteria: awareness and critical evaluation of alternatives}
+\remark{Criteria 15: awareness and critical evaluation of alternatives}
 
 This section describes the methodology that was used to address each of the research questions.
 
@@ -237,6 +238,7 @@ For detailed instructions on how to reproduce the results using the source code 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
+\label{s:rq1}
 
 A review of the relevant Australian standards for bicycle lanes \cite{standards}, combined with local knowledge, suggested that the best way to search for bicycle lanes in street scene images would be to train a model to search for the bicycle lane markings that are painted on the road surface.  See figure \ref{fig:symbol}.  This marking is universal across all standard bicycle lanes in Australia, and can distinguish a bicycle lane from other types of road segment.  The symbol may appear sometimes appear on a green surface, and occasionally it may be partially occluded due to limited space or wear and tear.  Similar symbols exist in many other jurisdictions outside Australia.
 
@@ -279,7 +281,7 @@ Once intersections were identified from the OpenStreetMap data, it proved to be 
 \subsubsection{Downloading sample Google Street View images for the training dataset}
 \label{s:sample}
 
-Google provides an API for downloading Google Street View images of up to 640x640 pixels, at a cost of 7 USD per 1,000 images \cite{gsv_billing}.  The ``\texttt{google\char`_streetview}'' library was used to facilitate access to this API from Python code.  In order to minimise costs, whenever an image was downloaded via the API, a copy of the image and its associated metadata was cached locally, so that additional costs would not be incurred if a request was made for the same image at a later date.
+Google provides an API for downloading Google Street View images of up to 640x640 pixels, at a cost of \$7.00 USD per 1,000 images up to the first 100,000, discounted to \$5.60 USD per 1,000 images from 100,001 to 500,000, with further volume discounts negotiated with their sales team beyond that. \cite{gsv_billing}.  The ``\texttt{google\char`_streetview}'' library was used to facilitate access to this API from Python code.  In order to minimise costs, whenever an image was downloaded via the API, a copy of the image and its associated metadata was cached locally, so that additional costs would not be incurred if a request was made for the same image at a later date.
 
 The API allows images to be requested for a location (latitude/longitude) with a desired heading, field-of-view angle, and camera angle relative to the ``horizon''.  A Jupyter Notebook was created to:
 
@@ -318,14 +320,85 @@ Multiple pre-trained models from the TensorFlow 2 Model Garden were trialled, wi
 Please refer to Appendix \ref{a:tensorflow_training} for detailed instructions on how to reproduce the training process.
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{RQ2: Building a map of bicycle lane routes from detection coordinates}
+\section{RQ2: Building a map of bicycle lane routes from Google Street View images in an area}
+\label{s:rq2}
 
-\remark{Iterating over all streets in an area}
+In section \ref{s:rq1}, a model was trained to detect bicycle lane markings in a single street view image.  To generate a map or dataset of bicycle lanes in an area, the first step is to determine a list of locations for which Google Street View images should be downloaded and processed by the model.  A batch process is then used to process each image and record whether a bicycle lane marker was found.  Finally, the list of sample locations where there was a ``hit'' must be correlated to geospatial data about the road network to infer and draw routes on a map.
 
-\remark{Transforming detection coordinates into routes}
+\subsection{Sampling strategy for Google Street View images}
+\label{s:rq2a}
+
+In section \ref{s:sample}, it was noted that Google currently advertises a minimum cost of \$7.00 USD per 1,000 Google Street View images, and that the most likely place to find a bicycle lane marker is in the area immediately surrounding an intersection.  It was also found that the Google Street View API would only return distinct images every 10 metres.  Two sampling strategies were considered:
+\begin{itemize}
+\item{Generating a list of sample points every 10 metres along every street in the area.}
+\item{Generating a list of sample points within a configurable distance of each intersection in the area, at 10 metre intervals.	}
+\end{itemize}
+
+Depending on the density of intersections in an area, limiting the samples to the immediate area around intersections could result in a significant cost reduction.  The ``intersection'' strategy was chosen, with the option to switch to full 10 metre sampling strategy if the results showed that too many bicycle lanes were being missed, that might otherwise have been detected with more samples.
+
+An OpenStreetMap XML extract file for the area was loaded into memory and used to iterate over all streets and intersections in the area, resulting in a CSV batch file of sample locations to be downloaded from Google Street View and processed by the model.  The size of the batch file was inspected to assess potential cost before proceeding with the download from Google Street View.
+
+When loading and interpreting the OpenStreetMap XML extracts, it was important to understand that while a ``way'' object in the data typically represents a road segment, it may also represent the boundary of a reserve, a natural feature such as a coastline or creek, or a walking trail.  To avoid unnecessary requests to the Google Street View API for off-street locations, it was necessary to inspect the tags associated with each ``way'' to isolate actual road segments.
+
+The resulting sample location CSV file included not just the coordinates of each point, but the OpenStreetMap ``way'' and ``node'' IDs that the sample came from, any offset (in metres) from the original ``node'' coordinates, and descriptive fields such as the street or road name to help with traceability.
+
+Please see Appendix \ref{a:sample_area1} for detailed instructions on how to operate the tool that was used to generate a list of sample locations.
+
+\subsection{Batch processing of Google Street View images}
+\label{s:rq2b}
+
+Once sample locations have been selected, the first stage of the batch process works through the list, downloading any Google Street View images that have not already been cached locally.  The second stage calls the detection model to process each image.  If one or more bicycle lane markings are detected in an image, a copy of the image is saved to a folder of ``hits'', with the bounding box and confidence score included in the image to show where the detection was found.  A record is also inserted into a CSV file of detection locations.  If no bicycle lane marking is found in the image, a copy is instead placed in a separate ``miss'' folder.  Partitioning the ``hits'' and ``misses'' into separate folders allows the operator to quickly browse the images to check for any false positives or false negatives.
+
+\remark{FIGURE: detection image for GSV}
+
+Please see Appendix \ref{a:gsv_batch} for detailed instructions on how to operate the tools to download and cache Google Street View images for a list of sample locations, and process them with the model.
+
+\subsection{Converting detection points into bicycle lane routes on a map}
+\label{s:rq2c}
+
+The result of the previous batch process in section \ref{s:rq2b} is a list of locations where a bicycle lane marking was found.  The next step is to convert these detection points into contiguous routes that can be drawn as lines on a map.  Google Street View image samples were taken 0, 90, 180, and 270 degrees from the assumed heading at each point, to provide to provide 360 degree coverage.  This allows detection of bicycle lane markings not just in the the forward and rear views, but also close along side the camera vehicle, to improve the chances that an image will be found where the marking is clearly visible.  The detection model has been trained to detect markings in any orientation, and many of the samples will be taken at intersections.  Therefore, when drawing routes, proper consideration must be made about whether a detection belongs to the route being inspected, or an intersecting street.
+
+Routes were inferred from the individual detection points based on the assumption that if markings were detected at two or more consecutive intersections along a street, there is a bicycle lane between them.  An option was given to allow for one or more missed detections at intersections before assuming that the route has been interrupted.
+
+A continuous road may be divided up into multiple ``way'' segments in the OpenStreetMap data if any of their characteristics change from one segment to the next, such as the speed limit.  Therefore before inferring bicycle lane routes along a road from the detection points, it was necessary to link the ``way'' segments back up into a single chain.
+
+Each inferred route was written to a .geojson file as a ``LineString Feature'' following the original co-ordinates of all ``nodes'' in the original OpenStreetMap data, from start to finish.
+
+\subsection{Comparing results to other data sources}
+
+Once a .geojson file has been produced with the detected bicycle lane routes, aligned to the co-ordinates of the road network in the OpenStreetMap XML extract, it can be drawn on a map in a Jupyter Notebook using the ``ipyleaflet'' library.
+
+The total length of all routes in a .geojson file can be calculated by using the ``geographiclib'' library to calculate the distance between each pair of points along the route.
+
+The original OpenStreetMap XML extract can be used to generate an equivalent .geojson file of bicycle lane routes in the area according to OpenStreetMap.  The data is filtered down to ``ways'' that are roads that have a ``cycleway'' related tag, and then a ``LineString Feature'' is written to an output .geojson for each cycleway.
+
+The detected .geojson file and the OpenStreetMap-derived .geojson file can be drawn on maps side-by-side for visual comparison, and the differences can be measured at a high level by comparing the total length of the routes in each file.
+
+To drill down further into the detail of the differences, multiple .geojson files were created:
+
+\begin{enumerate}
+\item{A .geojson file with all detected bicycle lanes}
+\item{A .geojson file where a bicycle lane was detected that was not recorded in OpenStreetMap}
+\item{A .geojson file where a bicycle lane was recorded in OpenStreetMap but not detected}
+\item{A .geojson file where both the detection model and OpenStreetMap agree that there is a bicycle lane}	
+\end{enumerate}
+
+Items 2-4 can be drawn as layers on a single map, each with their own color, to highlight where the bicycle lanes are, and where they disagree.  By measuring the distances in the file, we can quantify how much agreement there is between the two sources, and how many metres worth of bicycle lane routes are in one but not the other.
+
+The Principal Bicycle Network dataset is available in .geojson format.  A quick visual comparison can be made by drawing it on a map side-by-side with the detected bicycle lanes .geojson file.  To quantify the differences, including a measurement of where the sources agree or disagree:
+
+\begin{enumerate}
+\item{For each point in the Principal Bicycle Network dataset .geojson file, find the closest point in the OpenStreetMap XML extract and its ``node'' ID.  Exclude any points outside the bounding box of the area.}
+\item{Use the coordinates of the matching ``node'' from the OpenStreetMap data, instead of the original coordinates from the Principal Bicycle Network dataset, to ensure that the sources are ``aligned'' on a common understanding  of where the road network is.}
+\item{Produce four output .geojson files to compare the ``aligned'' Principal Bicycle Network dataset to the detected bicycle lanes, following the same basic process that was used for the OpenStreetMap comparison.}
+\end{enumerate}
+
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ3: Applying the process to dash camera footage}
+\label{s:rq3}
+
+\remark{Choice of hardware}
 
 \remark{Gathering data from dash cam}
 
@@ -347,15 +420,15 @@ Please refer to Appendix \ref{a:tensorflow_training} for detailed instructions o
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Results and Discussion}
 
-\remark{Criteria: clear and complete presentation of results}
+\remark{Criteria 40: clear and complete presentation of results}
 
-\remark{Criteria: sufficient quantity of work}
+\remark{Criteria 40: sufficient quantity of work}
 
-\remark{Criteria: appropriate intellectual level}
+\remark{Criteria 40: appropriate intellectual level}
 
-\remark{Criteria: appropriate consideration of evidence in discussion}
+\remark{Criteria 40: appropriate consideration of evidence in discussion}
 
-\remark{Criteria: uncertainty/error analysis}
+\remark{Criteria 40: uncertainty/error analysis}
 
 Discuss the limitations of GSV
 - Time
@@ -369,9 +442,9 @@ Compare to use of dash camera
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
 
-\remark{Criteria: conclusions are supported by the observations/results/calculations}
+\remark{Criteria 15: conclusions are supported by the observations/results/calculations}
 
-\remark{Criteria: conclusions relate to the original research questions/aims/hypotheses}
+\remark{Criteria 15: conclusions relate to the original research questions/aims/hypotheses}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
@@ -415,8 +488,18 @@ xxx
 
 xxx
 
-\chapter{Applying model to Google Street View images over a local area}
-\label{a:apply_gsv}
+\chapter{Sampling Google Street View images from a local area}
+\label{a:sample_area1}
+
+xxx
+
+\chapter{Batch processing of Google Street View images}
+\label{a:gsv_batch}
+
+xxx
+
+\chapter{Constructing a map from Google Street View detections}
+\label{a:gsv_map}
 
 xxx
 
