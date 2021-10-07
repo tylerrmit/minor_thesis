@@ -92,6 +92,7 @@ To Dr. Sophie Bittinger, Dr. Logan Bittinger, Laura Pritchard, and Dr. Curtis Sa
 \item{Picture of the mask}
 \item{I have not explained detection confidence threshold}
 \item{Example papers using Canny-Hough}
+\item{How well do the summary and abstract tie to all four research questions?}
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -136,8 +137,9 @@ Google Street View has been chosen as a source of street scene image data due to
 \section{Research Questions}
 \begin{itemize}
 \item{RQ1: Can a ``deep learning'' machine learning model be used to identify on-road bicycle lanes in street scene images sourced from Google Street View?}
-\item{RQ2: Can the model then be used to detect and map bicycle lanes across all streets in a local area with Google Street View coverage?}
-\item{RQ3: Can a similar process be applied to street scene images collected from dash camera video footage?}
+\item{RQ2: Can the model then be used to detect and map bicycle lane routes across all streets in a local area with Google Street View coverage?}
+\item{RQ3: Can a similar process be applied map bicycle lane routes from street scene images collected from dash camera video footage in a survey area?}
+\item{RQ4: Can the approach used to map bicycle lane routes be re-used to visually survey other details about the infrastructure?}
 \end{itemize}
 
 
@@ -520,11 +522,31 @@ Once the detection coordinates have been aligned to the OpenStreetMap coordinate
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\section{Extension: Detecting and mapping paved shoulders}
+\section{RQ4: Surveying other infrastructure details using dash camera footage}
 
-Further work was conducted, beyond the original research questions, to see if the dash camera footage could be used to create a map of paved shoulders in a local area.  A paved shoulder can provide additional safety to cyclists by giving them some separation from vehicle traffic, even if they have not been officially marked as a bicycle lane.
+Once dash camera footage had been used to map bicycle lane routes in a survey area, some further work was conducted to demonstrate how the approach might be re-used to survey other details of interest.  To demonstrate future potential, a process was created to map any paved shoulders on the side of the roads in the survey area that cyclists might ride on achieve physical separation from motor vehicles.  Previous studies such as Klobucar \& Fricker, 2007 \cite{BIKESAFETY} have observed that a paved shoulder can improved cyclist safety, even if it is not formally marked as a bicycle lane.
 
-To identify a paved shoulder, it is necessary to detect the lane markings and the side of the road.  A ``standard'' solution to detecting lane markings is to follow the following process:
+For a discussion of other areas of potential for future work, please refer to section \ref{s:future_work}.
+
+To identify a paved shoulder, it is necessary to detect lane markings, and the edge of the road if it is not explicitly marked.  We are interested in the edge of the road on the side of the road that traffic usually drives on.  In this research, dash camera footage was captured in Australia, so we are interested in the left hand side.  The following section therefore refers to the ``left''.
+
+
+\subsection{Correcting for lens distortion}
+
+Lens distortion is where the optical properties of a camera's lens causes straight lines to appear curved in an image.  The ``OpenCV'' library provides a method to correct distortion for a specific camera \cite{distortion}.  The camera is used to capture a range of images where a special calibration tool appears in frame.  Then a the series of images is used to create a mathematical model of the camera's lens distortion.  Once this model has been created, it can be used to apply a transformation to any image from the camera in question.
+
+\remark{see demo figures showing the calibration process}
+
+When searching for paved shoulders in a survey area, we are looking for lines in an image that are often straight.  The dash camera being used to collect images was therefore calibrated, and images processed to correct for distortion in this part of the exercise, in case the distortions had an impact.  This operation may also be assist future work to estimate the width of detected lanes.
+
+\remark{see demo before and after images}
+
+
+\subsection{Detecting lane markings}
+
+A common solution to the problem of detecting lane markings involves applying a combination of the Canny edge detection algorithm proposed by Canny, 1987 \cite{canny} and the Hough transformation proposed by Hough, 1972 \cite{hough}.  This general approach has been followed in many papers such as  Li et al, 2016 \cite{canny_example} or Chai et al, 2014 \cite{canny_example2} and it is frequently used in capstone projects in the self-driving car domain.  At its most basic, the approach does not involve any machine learning or deep learning techniques.
+
+The Canny/Hough approach typically works as follows:
 
 \begin{itemize}
 \item{Apply Canny edge detection to detect edges in an image \cite{canny}}
@@ -535,16 +557,67 @@ To identify a paved shoulder, it is necessary to detect the lane markings and th
 \item{Use the slope and intercept of each detected line to overlay a line on the original image, extending from the bottom of the image to a suitable ``horizon'' somewhere around half-way to the top of the image.  These straight lines allow visualization of the detected lane boundaries.}
 \end{itemize}
 
-The ``OpenCV'' library provides convenient tools to implement this process.  It does not involve machine learning or deep learning.
+Please see figure \remark{I really want a figure demonstrating each stage!}
 
-Typically, the process is used to detect the vehicle's own lane.  In order to detect a paved shoulder, we first want to detect our vehicle's own lane, then perform a second pass at the image where the mask has shifted to only include areas to further to the edge of the road, relative to boundaries we identified for our own lane.  In countries where vehicles are driven on the left hand side of the road, such as the one where the dash camera footage was collected, this means we are looking further to the left of our own lane.
+The ``OpenCV'' library provides convenient tools to implement the required transformations.
+
+Typically, the process is used to detect the camera vehicle's own lane.  In order to detect a paved shoulder, we first want to detect the boundaries of our vehicle's own lane, then perform a second pass at the image where the mask has shifted to focus exclusively on areas to further to the edge of the road.
 
 \remark{Create sample images and include them and refer to them to explain this better.}
 
-If the Canny-Hough technique cannot find another line to the left of our own lane, it is assumed that there is no paved shoulder.
+A detected paved shoulder will be defined by two lines, each with a ``slope'' and an ``intercept''.  One line will be the left boundary of the camera's own lane, which is also the right boundary of the paved shoulder.  The other lane will be the left boundary of the paved shoulder, further to the edge of the road.  In the following example images, the detected lines have been overlaid  on the original image, along with two horizontal intersection lines.  The lower horizontal line is intended to show an intersection as close as possible beyond the bonnet of the camera vehicle, and the upper horizontal line is further into the distance, towards a ``horizon''.
 
-If a line is found...
+If the Canny/Hough approach cannot find another line to the left of our the camera vehicle's own lane, it is a strong sign that there is no clearly defined paved shoulder on the road at that location.  If a line is found, it could be a paved shoulder, or it could be a false positive caused by ``noise'' from something beside the road.  Please see figures \remark{here} for examples of true positive and false positive detections.  The potential for ``noise'' from false positives should be taken into account when attempting to create a map of paved shoulders across the survey area.
 
+\remark{obvious true positive, obvious true negative, sketchy false positive}
+
+roads only
+30m from intersections
+prop missing
+intersection y std => find intersection (x,y) of the intersection of the lines
+intersection x std
+width top mean
+
+\subsection{Mapping paved shoulders across a survey area}
+
+The Canny/Hough lane detection method can be applied to all sample frames from the survey area, by using a similar batch process to the bicycle lane detection process in section \ref{s:rq3} and substituting a different detection model.  The challenge is setting robust criteria for flagging a ``detection'' that will result in a sensible map.  The simplest criteria would be to look for frames where lines were detected for both the left and right boundaries of a paved shoulder.  This criteria was applied to the Frankston/Langwarrin/Baxter training area footage, and the resulting images with detection line overlays were reviewed in chronological order.  The results were very inconsistent.
+
+Reviewing the footage, it was found that on roads where there was a paved shoulder or bicycle lane, the boundaries of that lane remained relatively stable from frame-to-frame, and the width of gap between the boundaries towards the ``horizon'' at the top of the frame was relatively wide.  There were relatively few ``skipped'' frames where the boundaries were not detected.  In contrast, on roads without a paved shoulder or bicycle lane, there may be many ``skipped'' frames, the slopes of the detected boundaries were much less consistent from frame-to-frame, and the detected boundary lines often had an intersection point much closer to the bottom of the frame.
+
+The following solution was proposed:
+
+\begin{itemize}
+\item{Each frame would be linked to its two nearest intersection ``nodes'' in the  OpenStreetMap data.  Frames associated with a single stretch of road between two intersections would be assessed as a group, to determine whether a paved shoulder or bicycle lane exists along that stretch.}
+\item{Frames from locations within 30 metres of an intersection were excluded from consideration, because it is common for them to ``disappear'' at the approach to an intersection, and this disappearance should not counted as a missed detection.}
+\item{If the model fails to find both boundaries of a paved shoulder in more than 20\% of the remaining frames along a stretch of road, then it is assumed that there isn't one.}
+\item{A horizontal line is drawn across the frame towards a ``horizon'' as per figure \remark{REF}.  The width of the space between the boundary lines is measured at this height within the frame, in pixels.  The mean width is calculated across all frames in the stretch of road where boundary lines were detected.  If the mean is less than 75 pixels, then the possible paved shoulder is too narrow, and it is assumed not to exist.  This accounts for very narrow margins such a gutter that are of no use to a cyclist.}
+\item{If the model finds both left and right boundary lines for a possible paved shoulder, use the slopes and intercepts to calculate an (x,y) coordinate relative to the bitmap image where those two boundary lines intercept.  Calculate the standard deviation of the x and y intersection values across all frames in the stretch of road where both boundary lines are defined.  If the standard deviation in either the x or y dimension is greater than 50 pixels, then the boundary lines are considered to be too inconsistent.  The stretch of road is assumed not to have a paved shoulder.}
+\end{itemize}
+
+The thresholds described above were set based on the following process:
+
+\begin{itemize}
+\item{Update the batch process to output a row for every frame, in chronological order}
+\item{Include the name of the road for traceability.}
+\item{Include the node IDs of the two nearest intersections, to trace which frames are part of the same group.  The first node ID is the one that comes first alphabetically, not the one that is closest to the location associated with the frame.  This is to avoid splitting a group of frames for a stretch of road into two groups depending on which intersection is closest.}
+\item{Filter out frames where the location is within 30m of either of the two nearest intersections}
+\item{Create summary statistic columns for each group for frames, and add them to the output CSV as additional columns:
+	\begin{itemize}
+	\item{Proportion of frames where boundary lines were not detected}
+	\item{Mean width of the potential paved shoulder, in pixels, at the horizontal ``horizon'' line}
+	\item{Standard deviation of the y-coordinate where the boundary lines intersect}
+	\item{Standard deviation of the x-coordinate where the boundary lines intersect}
+	\end{itemize}
+}
+\item{Apply this process to the training area footage from Frankston/Langwarrin/Baxter to produce an output CSV.}
+\item{Load the output CSV file into an editor, and add a ``truth'' column to denote whether a paved shoulder really exists at each location, based on a review of the output frames with the detection line overlay.}
+\item{Filter the data to find thresholds in the summary statistics that appear to explain how the ``truth'' values are partitioned, as closely as possible.}
+\item{Create ``prediction'' column in the output CSV based on the chosen thresholds, and compare it to the ``actual'' value in the ``truth'' column.}
+\end{itemize}
+
+The model was then applied to the footage from the Mount Eliza testing area to see how it performed with the selected thresholds.
+
+To construct a map of detected paved shoulders, take the distinct combinations of ``way'' ID and the ``node'' IDs of the two closest sections, where a paved shoulder was predicted.  Find the ``way'' ID in the OpenStreetMap data, and ``draw'' a ``LineString Feature'' in a .geojson file for all ``nodes'' between the two intersection nodes, including the intersection nodes themselves.  The .geojson file can then be drawn on map in a Jupyter Notebook using the Python ``ipyleafelet'' library as per sections \ref{s:rq2} and \ref{s:rq3}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -561,6 +634,10 @@ If a line is found...
 
 \remark{Criteria 40: uncertainty/error analysis}
 
+\section{Opportunities for future research}
+\label{s:future_work}
+
+xxx
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
