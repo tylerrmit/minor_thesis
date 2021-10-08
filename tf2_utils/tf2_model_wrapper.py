@@ -32,7 +32,7 @@ class tf2_model_wrapper(object):
 
     '''
 
-    def __init__(self, locality, margin, download_directory, output_directory, trained_model_name):
+    def __init__(self, locality, margin, download_directory, output_directory, trained_model_name, version_suffix=None):
         '''
         Parameters
         ----------
@@ -56,9 +56,18 @@ class tf2_model_wrapper(object):
         self.output_directory_miss = os.path.join(self.output_directory, 'miss')
         self.trained_model_name    = trained_model_name
         
+        
+        if version_suffix is None:
+            self.version_suffix = ''
+        else:
+            self.version_suffix = '_' + version_suffix
+        
         print('Output directory for detections: ' + self.output_directory)
 
-        self.label_map_file       = os.path.join('TensorFlow', 'workspace', 'annotations', 'label_map.pbtxt')
+        self.label_map_file       = os.path.join('TensorFlow', 'workspace', 'annotations', 'label_map' + self.version_suffix + '.pbtxt')
+        
+        print('Label Map Path: [' + self.label_map_file + ']')
+        
         self.pipeline_config_file = os.path.join('Tensorflow', 'workspace','models', self.trained_model_name, 'pipeline.config')
         
         # Models still in-training and waiting to be exported have their checkpoint files here:
@@ -66,7 +75,7 @@ class tf2_model_wrapper(object):
 
         # Exported models have their checkpoint files in a subdirectory
         checkpoint_subdir = os.path.join(self.checkpoint_path, 'checkpoint') 
-        if os.path.exists(checkpoint_subdir):
+        if os.path.exists(checkpoint_subdir) and os.path.isdir(checkpoint_subdir):
             self.checkpoint_path = checkpoint_subdir
 
         # Create output directory if it does not already exist
@@ -87,7 +96,7 @@ class tf2_model_wrapper(object):
         checkpoint_files = os.listdir(self.checkpoint_path)
 
         for f in checkpoint_files:
-            if f.startswith('ckpt-'):
+            if f.startswith('ckpt-') and f.endswith('index'):
                 self.latest_checkpoint = f.split('.')[0]
         print('Latest Checkpoint: ' + self.latest_checkpoint)
 
@@ -131,12 +140,16 @@ class tf2_model_wrapper(object):
                 )
             else:
                 image_filename = filename
-                
+            
             output_filename = '{0:s}_{1:s}_{2:d}.jpg'.format(lat_str, lon_str, heading)
+            
+            if output_filename.startswith('n0.0'):
+                output_filename = os.path.basename(filename)
+                
             image_path      = os.path.join(self.download_directory, image_filename)     
         
             if verbose:
-                print('Input path:  ' + image_path)     
+                print('Input path: [{0:s}] Output filename: [{1:s}]'.format(image_path, output_filename) )    
 
             if not os.path.exists(image_path):
                 if verbose:
@@ -272,7 +285,7 @@ class tf2_model_wrapper(object):
                     plt.show()
                 
                 
-    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], min_score=0.5, mask=None, progress=False, verbose=False):
+    def process_batch_file(self, batch_filename, heading_offsets=[0,90,180,270], min_score=0.5, mask=None, explicit_files=False, progress=False, verbose=False):
         '''
         Parameters
         ----------
@@ -290,9 +303,9 @@ class tf2_model_wrapper(object):
         # Iterate over every requested location in the batch
         df = pd.read_csv(batch_filename)
 
-        if progress:
-            tqdm.pandas()   
-
+        tqdm.pandas()  
+            
+        if explicit_files:
             df.progress_apply(lambda row: self.apply_model(
                 row['lat'],
                 row['lon'],
@@ -301,31 +314,32 @@ class tf2_model_wrapper(object):
                 row['way_id'],
                 row['node_id'],
                 row['offset_id'],
-                min_score = min_score,
-                mask      = mask,
-                write     = True,
-                display   = False,
-                log       = True,
-                verbose   = verbose),
+                min_score      = min_score,
+                mask           = mask,
+                filename       = row['image_path'],
+                write          = True,
+                display        = False,
+                log            = True,
+                verbose        = verbose),
                 axis=1
             )
         else:
-            for index, row in df.iterrows():
-                self.apply_model(
-                    row['lat'],
-                    row['lon'],
-                    row['bearing'],
-                    row['way_start_id'],
-                    row['way_id'],
-                    row['node_id'],
-                    row['offset_id'],
-                    min_score = min_score,
-                    mask      = mask,
-                    write     = True,
-                    display   = False,
-                    log       = True,
-                    verbose   = verbose
-                )
+            df.progress_apply(lambda row: self.apply_model(
+                row['lat'],
+                row['lon'],
+                row['bearing'],
+                row['way_start_id'],
+                row['way_id'],
+                row['node_id'],
+                row['offset_id'],
+                min_score      = min_score,
+                mask           = mask,
+                write          = True,
+                display        = False,
+                log            = True,
+                verbose        = verbose),
+                axis=1
+            )
                 
         return detection_log_path
 
