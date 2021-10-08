@@ -306,7 +306,7 @@ The Google Street View API allows images to be requested for a location (latitud
 
 \begin{enumerate}
 	\item{Randomly select a sample location and heading from a CSV of candidate intersections anywhere in the State of Victoria.}
-	\item{Download four Google Street View images at 0, 90, 180, and 270 degrees relative to the desired heading, with a 90 degree field of view for each image, and the camera angled 30 degrees towards the ground to focus on any nearby road markings.}
+	\item{Download four Google Street View images at 0, 90, 180, and 270 degrees relative to the desired heading, with a 90 degree field of view for each image, and the camera angled 20 degrees towards the ground to focus on any nearby road markings.}
 	\item{Allow the operator to quickly record which of the four images they see a bicycle lane marking in (if any) to a CSV file listing images ready to be labelled and included in the dataset.}
 	\item{Repeat.}
 \end{enumerate}
@@ -816,10 +816,56 @@ In this exercise, lane detection was attempted from the dash camera footage only
 
 \remark{Criteria 40: uncertainty/error analysis}
 
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
+
+\remark{Table showing training loss at each 100 epochs for multiple models}
+
+\remark{Table showing evaluation mAP at 5k 10k 15k 20k 25k 30k for multiple models}
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{RQ2: Building a map of bicycle lane routes from Google Street View images in an area}
+
+\subsection{Mount Eliza}
+
+\remark{Detected Map}
+
+\remark{OpenStreetMap Map}
+
+\remark{PBN Map}
+
+\remark{Comparison of Detected vs. OpenStreetMap}
+
+\subsection{Another suburb}
+
+\remark{Pick a suburb further in, residential like Carnegie?  Check OSM first.}
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{RQ3: Applying the process to dash camera footage}
+
+\remark{Comparison of Detected vs. OpenStreetMap}
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{RQ4: Surveying other infrastructure details using dash camera footage}
+
+\remark{Produce map of paved shoulders, and discuss.  What is true?}
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Limitations}
+
+Discussion of limitations of the work
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Opportunities for future research}
 \label{s:future_work}
 
-xxx
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -831,6 +877,8 @@ xxx
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Computer Environment}
 \label{a:environment}
 
@@ -846,56 +894,67 @@ xxx
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Identifying candidate intersections to sample based on cycleways in an OpenStreetMap XML extract}
 \label{a:sample_osm}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Identifying candidate intersections to sample based on existing bicycle lanes in the Principal Bicycle Network dataset}
 \label{a:sample_pbn}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{OpenStreetMap concepts}
 \label{a:osm_concepts}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Downloading and flagging sample Google Street View images for the training dataset}
 \label{a:download_gsv}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{General directions on setting up a local TensorFlow 2 development environment}
 \label{a:setupenv}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Training and evaluating a Deep Learning model from the Tensorflow 2 Model Garden}
 \label{a:tensorflow_training}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Sampling Google Street View images from a local area}
 \label{a:sample_area1}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Batch processing of Google Street View images}
 \label{a:gsv_batch}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Constructing a map from Google Street View detections}
 \label{a:gsv_map}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Applying model to Dash Camera footage}
 \label{a:apply_dashcam}
 
 xxx
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Detecting paved shoulders from Dash Camera footage}
 \label{a:lane_detection}
 
