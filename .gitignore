@@ -33,3 +33,8 @@ data_sources/dashcam_tour_mount_eliza/split/lanes_filtered/*.png
 .DS_Store
 report/.DS_Store
 report/*.log
+data_sources/planet_victoria.osm
+data_sources/pbn_intersections.csv
+data_sources/pbn_exploded.geojson
+data_sources/hits.csv
+data_sources/osm_intersections.csv
