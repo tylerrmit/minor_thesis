@@ -36,3 +36,5 @@ report/*.log
 data_sources/planet_victoria.osm
 data_sources/pbn_intersections.csv
 data_sources/pbn_exploded.geojson
+data_sources/hits.csv
+data_sources/osm_intersections.csv
