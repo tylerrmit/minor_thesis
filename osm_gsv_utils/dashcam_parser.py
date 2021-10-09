@@ -82,6 +82,12 @@ class dashcam_parser(object):
         filenames = os.listdir(dir)
         filenames_filtered = [x for x in filenames if x.endswith('.' + suffix)]
         
+        # Initialize output CSV and write header
+        metadata_filename = os.path.join(output_dir, 'metadata.csv')
+        csv_file = open(metadata_filename, 'w')
+        csv_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1\n')
+        csv_file.close()
+
         for idx in trange(len(filenames_filtered)):
             filename = filenames_filtered[idx]
             
@@ -218,6 +224,12 @@ class dashcam_parser(object):
                     else:
                         pixel_width_bottom = 0
                         pixel_width_top    = 0
+                        left_slope2        = 0
+                        left_int2          = 0
+                        left_slope1        = 0
+                        left_int1          = 0
+                        right_slope1       = 0
+                        right_int1         = 0
                             
                     if verbose:
                         print('{0:s} {1:4d} [{2:.7f}, {3:.7f}] {4:f} {5:f}'.format(
