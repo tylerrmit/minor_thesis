@@ -32,7 +32,7 @@ class osm_walker(object):
 
     '''
 
-    def __init__(self, filename_main, filename_margin=None, verbose=False):
+    def __init__(self, filename_main, filename_margin=None, filter_log=None, verbose=False):
         '''
         Parameters
         ----------
@@ -80,30 +80,52 @@ class osm_walker(object):
         self.either_features             = []
         self.tagged_only_features        = []
         self.detected_only_features      = []
-                
         
+        self.included_nodes              = {} # Nodes that were included in a survey route, value=way_id_start
+        self.filtered_nodes              = {} # Nodes that were filtered
+        
+        
+        # If we have been given a CSV file of points to include (because we are filtering to a route)
+        # then record them in a dict, ready to compare to the XML data as we load it
+        if filter_log is not None:
+            self.load_filter_log(filter_log)
+            
         # Load the main XML file into memory
         # This assumes that we have reduced the OpenStreetMap data down to a small enough locality
         # that the in-memory approach is feasible
         doc_main = xml.dom.minidom.parse(filename_main)
 
-        self.process_osm_xml(doc_main, intersections_only=False, verbose=verbose)
+        self.process_osm_xml(doc_main, intersections_only=False, filter_log=filter_log, verbose=verbose)
         
         if filename_margin:
             # Load a slightly bigger XML file into memory, to catch nodes that are JUST outside the
             # boundary of the locality
             doc_margin = xml.dom.minidom.parse(filename_margin)
 
-            #self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
             self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
+            
+        # Report on any filtering
+        if filter_log is not None:
+            print('Nodes Loaded: [{0:d}] Filtered = [{1:d}]'.format(len(self.node_coords), len(self.filtered_nodes)))
+            
+            
+    def load_filter_log(self, filter_log):
+        df = pd.read_csv(filter_log)
+        
+        for index in trange(len(df.index)):
+            row = df.iloc[[index]]
+                
+            way_id_start = str(row['way_id_start'].item())
+            node_id      = str(row['node_id'].item())
+            
+            self.included_nodes[node_id] = way_id_start
+            
 
-
-    def process_osm_xml(self, doc, intersections_only=False, verbose=True):
+    def process_osm_xml(self, doc, intersections_only=False, filter_log=None, verbose=True):
         # Get ways and nodes from XML document
         ways_xml  = doc.getElementsByTagName('way')
         nodes_xml = doc.getElementsByTagName('node')
 
-        #for way in ways_xml:
         for way_idx in trange(0, len(ways_xml)):
             way = ways_xml[way_idx]
             
@@ -195,36 +217,46 @@ class osm_walker(object):
                 node_refs = way.getElementsByTagName('nd')
                 for idx, node_ref in enumerate(node_refs):
                     ref = node_ref.getAttribute('ref')
-                    if ref in self.way_names_per_node:
-                        if way_name not in self.way_names_per_node[ref]:
-                            self.way_names_per_node[ref].append(way_name)
-                    else:
-                        self.way_names_per_node[ref] = [way_name]
+                    
+                    # Apply node filtering if required
+                    if filter_log is None or ref in self.included_nodes:
+                        if ref in self.way_names_per_node:
+                            if way_name not in self.way_names_per_node[ref]:
+                                self.way_names_per_node[ref].append(way_name)
+                        else:
+                            self.way_names_per_node[ref] = [way_name]
                         
-                    if ref in self.way_ids_per_node:
-                        if way_id not in self.way_ids_per_node[ref]:
-                            self.way_ids_per_node[ref].append(way_id)
-                    else:
-                        self.way_ids_per_node[ref] = [way_id]
+                        if ref in self.way_ids_per_node:
+                            if way_id not in self.way_ids_per_node[ref]:
+                                self.way_ids_per_node[ref].append(way_id)
+                        else:
+                            self.way_ids_per_node[ref] = [way_id]
                         
-                    if way_id in self.way_node_ids:
-                        self.way_node_ids[way_id].append(ref)
-                    else:
-                        self.way_node_ids[way_id] = [ref]
+                        if way_id in self.way_node_ids:
+                            self.way_node_ids[way_id].append(ref)
+                        else:
+                            self.way_node_ids[way_id] = [ref]
                         
-                    if idx == 0:
-                        self.way_starts[way_id] = ref
-                    if idx == len(node_refs) - 1:
-                        self.way_ends[way_id] = ref
+                        if idx == 0:
+                            self.way_starts[way_id] = ref
+                        if idx == len(node_refs) - 1:
+                            self.way_ends[way_id] = ref
+                    else:
+                        self.filtered_nodes[ref] = True
                 
                 node_ends = [node_refs[0], node_refs[-1]]
                 for node_ref in node_ends:
-                    ref = node_ref.getAttribute('ref')                        
-                    if ref in self.way_ends_per_node:
-                        if way_id not in self.way_ends_per_node[ref]:
-                            self.way_ends_per_node[ref].append(way_id)
+                    ref = node_ref.getAttribute('ref')
+
+                    # Apply node filtering if required
+                    if filter_log is None or ref in self.included_nodes:
+                        if ref in self.way_ends_per_node:
+                            if way_id not in self.way_ends_per_node[ref]:
+                                self.way_ends_per_node[ref].append(way_id)
+                        else:
+                            self.way_ends_per_node[ref] = [way_id]  
                     else:
-                        self.way_ends_per_node[ref] = [way_id]                
+                        self.filtered_nodes[ref] = True
                 
                 recorded = True
                  
@@ -232,12 +264,17 @@ class osm_walker(object):
         if not intersections_only:
             for node in nodes_xml:
                 id = node.getAttribute('id').upper()
-                self.nodes[id] = node
                 
-                lat = float(node.getAttribute('lat'))
-                lon = float(node.getAttribute('lon'))
+                # Apply node filtering if required
+                if filter_log is None or id in self.included_nodes:
+                    self.nodes[id] = node
                 
-                self.node_coords[id] = [lat, lon]
+                    lat = float(node.getAttribute('lat'))
+                    lon = float(node.getAttribute('lon'))
+                
+                    self.node_coords[id] = [lat, lon]
+                else:
+                    self.filtered_nodes[id] = True
     
             if verbose:
                 print('Way count:          %d' % ways_xml.length)
@@ -404,7 +441,10 @@ class osm_walker(object):
             print('First node: ' + first_node_id)
             
         # Are there any other ways that join, end-to-end, with this node, with any way name?
-        intersecting_ways = self.way_ends_per_node[first_node_id]
+        if first_node_id not in self.way_ends_per_node:
+            intersecting_ways = []
+        else:
+            intersecting_ways = self.way_ends_per_node[first_node_id]
 
         # If there is only one way linked to the first node, then it must be this
         # way, and therefore this is the start of a way
@@ -443,7 +483,10 @@ class osm_walker(object):
         this_way_name = self.way_names_by_id[way_id]
     
         # Are there any other ways that intersect with this node, with any way name?
-        intersecting_ways = self.way_ids_per_node[last_node_id]
+        if last_node_id not in self.way_ends_per_node:
+            intersecting_ways = []
+        else:
+            intersecting_ways = self.way_ids_per_node[last_node_id]
         
         if verbose:
             print('Last node ID: {0:s}'.format(last_node_id))
@@ -565,11 +608,12 @@ class osm_walker(object):
                 
                 for node_ref in node_refs:
                     ref = node_ref.getAttribute('ref')
-                    if ref not in section_all:
-                        section_all.append(ref)
-                        section_cwy.append(self.way_is_cycleway[way_id])
-                        these_coords = self.node_coords[ref]
-                        coord_list.append((these_coords[0], these_coords[1]))
+                    if len(self.included_nodes) < 1 or ref in self.included_nodes:
+                        if ref not in section_all:
+                            section_all.append(ref)
+                            section_cwy.append(self.way_is_cycleway[way_id])
+                            these_coords = self.node_coords[ref]
+                            coord_list.append((these_coords[0], these_coords[1]))
                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('START', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
@@ -592,11 +636,12 @@ class osm_walker(object):
                 
                     for node_ref in node_refs:
                         ref = node_ref.getAttribute('ref')
-                        if ref not in section_all:
-                            section_all.append(ref)
-                            section_cwy.append(self.way_is_cycleway[way_id])
-                            these_coords = self.node_coords[ref]
-                            coord_list.append((these_coords[0], these_coords[1]))
+                        if len(self.included_nodes) < 1 or ref in self.included_nodes:
+                            if ref not in section_all:
+                                section_all.append(ref)
+                                section_cwy.append(self.way_is_cycleway[way_id])
+                                these_coords = self.node_coords[ref]
+                                coord_list.append((these_coords[0], these_coords[1]))
                                            
                     if verbose:
                         print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
@@ -610,9 +655,10 @@ class osm_walker(object):
                 
                 self.linked_way_sections_all[way_id_start] = section_all
                 self.linked_way_sections_cwy[way_id_start] = section_cwy
-                self.linked_way_sections[way_id_start]     = section           
-                self.linked_linestrings[way_id_start]      = LineString(coord_list)
-                self.linked_coord_list[way_id_start]       = coord_list
+                self.linked_way_sections[way_id_start]     = section
+                if len(coord_list) > 1:
+                    self.linked_linestrings[way_id_start]      = LineString(coord_list)
+                    self.linked_coord_list[way_id_start]       = coord_list
                 
                 if verbose:
                     print('Saving {0:s} {1:s}'.format(way_name, way_id_start))
@@ -639,11 +685,12 @@ class osm_walker(object):
                 
                 for node_ref in node_refs:
                     ref = node_ref.getAttribute('ref')
-                    if ref not in section_all:
-                        section_all.append(ref)
-                        section_cwy.append(self.way_is_cycleway[way_id])
-                        these_coords = self.node_coords[ref]
-                        coord_list.append((these_coords[0], these_coords[1]))
+                    if len(self.included_nodes) < 1 or ref in self.included_nodes:
+                        if ref not in section_all:
+                            section_all.append(ref)
+                            section_cwy.append(self.way_is_cycleway[way_id])
+                            these_coords = self.node_coords[ref]
+                            coord_list.append((these_coords[0], these_coords[1]))
                                         
                 if verbose:
                     print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('NEXT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
@@ -663,11 +710,12 @@ class osm_walker(object):
                 
                     for node_ref in node_refs:
                         ref = node_ref.getAttribute('ref')
-                        if ref not in section_all:
-                            section_all.append(ref)
-                            section_cwy.append(self.way_is_cycleway[way_id])
-                            these_coords = self.node_coords[ref]
-                            coord_list.append((these_coords[0], these_coords[1]))
+                        if len(self.included_nodes) < 1 or ref in self.included_nodes:
+                            if ref not in section_all:
+                                section_all.append(ref)
+                                section_cwy.append(self.way_is_cycleway[way_id])
+                                these_coords = self.node_coords[ref]
+                                coord_list.append((these_coords[0], these_coords[1]))
                                             
                     if verbose:
                         print('{3:10d} {0:5s} {1:10s} {2:s} {4:d}'.format('CONT', way_id, self.way_names_by_id[way_id], len(self.unused_way_ids), len(coord_list)))
@@ -680,14 +728,14 @@ class osm_walker(object):
                 self.linked_way_sections_all[way_id_start] = section_all
                 self.linked_way_sections_cwy[way_id_start] = section_cwy
                 self.linked_way_sections[way_id_start]     = section
-                self.linked_linestrings[way_id_start]      = LineString(coord_list)
-                self.linked_coord_list[way_id_start]       = coord_list
+                if len(coord_list) > 1:
+                    self.linked_linestrings[way_id_start]      = LineString(coord_list)
+                    self.linked_coord_list[way_id_start]       = coord_list
                 
                 if verbose:
                     print('Saving {0:s} {1:s}'.format(way_name, way_id))
                     print('section:     {0:3d} {1:s}'.format(len(section), str(section)))
-                    print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))
-                    
+                    print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))                 
     
     
     def load_detection_log(self, filename):        
@@ -702,7 +750,7 @@ class osm_walker(object):
             else:
                 self.detection_hits[key] = [[row['offset_id'], row['score']]]
                 
-
+                
     def snap_detection_log(self, filename_in, filename_out):
         df = pd.read_csv(filename_in)
         

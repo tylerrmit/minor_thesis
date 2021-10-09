@@ -94,3 +94,47 @@ class detection_log_filter(object):
                     ))
       
             f.close()  
+            
+    @staticmethod       
+    def convert_metadata_to_route_log(input_file, output_file):
+        df = pd.read_csv(input_file)
+        
+        with open(output_file, 'w') as f:
+            f.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3,orig_filename\n')
+            
+            for index in trange(len(df.index)):
+                row = df.iloc[[index]]
+                
+                lat           = row['lat'].item()
+                lon           = row['lon'].item()
+                bearing       = int(row['heading'].item())
+                heading       = int(row['heading'].item())
+                way_id_start  = 0
+                way_id        = 0
+                node_id       = 0
+                offset_id     = row['frame_num'].item()
+                score         = 1.0
+                bbox_0        = 0.5
+                bbox_1        = 0.5
+                bbox_2        = 0.5
+                bbox_3        = 0.5
+                orig_filename = row['filename'].item()
+                
+                f.write('{0:.6f},{1:.6f},{2:d},{3:d},{4:d},{5:d},{6:d},{7:f},{8:f},{9:f},{10:f},{11:f},{12:f},{13:s}\n'.format(
+                    lat,
+                    lon,
+                    bearing,
+                    heading,
+                    way_id_start,
+                    way_id_start,
+                    node_id,
+                    offset_id,
+                    score,
+                    bbox_0,
+                    bbox_1,
+                    bbox_2,
+                    bbox_3,
+                    orig_filename
+                ))
+      
+            f.close() 
