@@ -874,9 +874,16 @@ Discussion of limitations of the work
 \remark{Criteria 15: conclusions are supported by the observations/results/calculations}
 
 \remark{Criteria 15: conclusions relate to the original research questions/aims/hypotheses}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \appendix
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\chapter{OpenStreetMap XML Concepts}
+\label{a:osm_concepts}
+
+Explain ways, nodes, tags, natural features, intersections...
+
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Computer Environment}
@@ -887,81 +894,348 @@ Two computers were used
 \section{Machine Learning workstation}
 \label{a:computer}
 
-xxx
+Hyper-V
 
 \section{Nominatim server}
 \label{a:nominatim}
 
-xxx
+Install instructions?
+
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Identifying candidate intersections to sample based on cycleways in an OpenStreetMap XML extract}
-\label{a:sample_osm}
+\chapter{Process documentation}
+\label{a:process}
 
-xxx
+To assist with reproduction of results, code is provided at GitHub at:
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Identifying candidate intersections to sample based on existing bicycle lanes in the Principal Bicycle Network dataset}
-\label{a:sample_pbn}
+\url{https://github.com/tylerrmit/minor_thesis.git}
 
-xxx
+And the both the code and any key data collected are available on FigShare at:
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{OpenStreetMap concepts}
-\label{a:osm_concepts}
+\url{TBA}
 
-xxx
+The code consists of a series of Jupyter Notebooks for high-level operation of the process, supported by Python classes for implementation details.  The Jupyter Notebooks are numbered to help the user through the proper sequence, and they are documented below.
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Downloading and flagging sample Google Street View images for the training dataset}
-\label{a:download_gsv}
+Dash camera MP4 footage and NMEA metadata that was collected during the experiments are provided on FigShare, along with calibration footage and other files.  These are intended to help reproduce the results of the dash camera experiments, however a full process is provided for anyone who wishes to assemble their own equipment and collect data in a different area.
 
-xxx
+\section{Jupyter Notebooks}
+\label{aj}
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{General directions on setting up a local TensorFlow 2 development environment}
-\label{a:setupenv}
+All Jupyter Notebooks listed below follow a convention that immediately after a title and description, there is a single ``Config'' cell where \textit{all} customization or configuration for the notebook can be made.  E.g. there may be a parameter that can be adjusted to survey a different town or suburb.  Shortly after the ``Config'' cell, any required Python modules are imported, and then then any variables that are derived from the ``Config'' variables (e.g. paths to files or directories) are defined.  To run the Jupyter Notebooks in general:
 
-xxx
+\begin{itemize}
+\item{Review the description and documentation}
+\item{Review and update the ``Config'' cell}
+\item{Run all cells in the notebook (or step through one cell at a time if preferred)}	
+\end{itemize}
+Whereever an operation is expected to take a long time, processing many records, progress bars are provided.
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Training and evaluating a Deep Learning model from the Tensorflow 2 Model Garden}
-\label{a:tensorflow_training}
+The notebooks are designed with the assumption that the ``jupyter notebooks'' command will be run from within the ``minor\_thesis'' top-level directory that was checked out from GitHub.  They expect to find a ``data\_sources'' subdirectory in the current working directory for a lot of the data and configuration files, and a ``jupyter'' subdirectory where the notebooks live.
 
-xxx
+\subsection{01\_Reverse\_Geocode\_PBN}
+\label{aj:01}
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Sampling Google Street View images from a local area}
-\label{a:sample_area1}
+We create a dataset of Google Street View images containing bicycle lane markings by examining images of intersections along known bicycle routes, because the markings are consistently found at intersections.  To identify candidate intersections to survey for sample data, we can use either the ``Principal Bicycle Network'' dataset or OpenStreetMap ``cycleway'' tags as our source of known bicycle routes.
 
-xxx
+If we wish to use the ``Principal Bicycle Network'' dataset as the basis for our sampling strategy, we use notebooks 01 and 02.  If we wish to use OpenStreetMap data, we can use notebook 03 instead.
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Batch processing of Google Street View images}
-\label{a:gsv_batch}
+The purpose of notebook 01 is to apply ``reverse-geocoding'' to all points in the ``Principal Bicycle Network'' dataset, to help identify intersections where we might look to gather Google Street View images containing bicycle lane markings, for our dataset.  The process takes latitude/longitude coordinates, and finds the street name and town/suburb/city, which we can use to search for intersections in the next step.
 
-xxx
+It requires a copy of the ``Principal Bicycle Network'' dataset from \url{data.gov.au} in geojson format, and connection details for a local Nominatim server as per appendix \ref{a:nominatim}.
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Constructing a map from Google Street View detections}
-\label{a:gsv_map}
+It will create the file ``pbn\_exploded.geojson'' as its output.  This notebook can be skipped by using the copy of the output file from ``FigShare'', or by using OpenStreetMap as the driver for sampling intersections along known bicycle lane routes, via notebook 03.
 
-xxx
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Applying model to Dash Camera footage}
-\label{a:apply_dashcam}
+\subsection{02\_Identify\_Candidate\_Intersections\_PBN}
+\label{aj02}
 
-xxx
+This notebook takes the reverse-geocoded ``Principal Bicycle Network'' data from notebook 01, and correlates it to OpenSteetMap data to find the intersections.  It outputs a file ``pbn\_intersections.csv'' for use in the sampling process in notebook 04.
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Detecting paved shoulders from Dash Camera footage}
-\label{a:lane_detection}
+This notebook requires a local Nominatim server.  It also requires an OpenStreetMap XML extract for Victoria -- see the notes at the top of the notebook for instructions on how to obtain that.  It can be skipped by using a copy of the output file from ``FigShare'', or by using OpenStreetMap as the driver for sampling intersections along known bicycle lane routes, via notebook 03.
 
-xxx
+
+\subsection{03\_Identify\_Candidate\_Intersections\_OSM}
+\label{aj03}
+
+This notebook creates a list of intersections along known bicycle lane routes using OpenStreetMap ``cycleway'' tags as its source of information.  It is an alternative to using notebooks 01 and 02 that should generalise well for other states and countries, where the ``Principal Bicycle Network'' dataset does not provide coverage.
+
+It requires an OpenStreetMap XML extract for Victoria -- see the notes at the top of the notebook for instructions on how to obtain that.   It outputs a file ``osm\_intersections.csv''.
+
+This notebook is provided as an option to help reproduce the results outside of Victoria, however it was the ``Principal Bicycle Network'' approach in notebooks 01 and 02 that was actually used.
+
+\subsection{04\_Gather\_Dataset\_GSV}
+\label{aj04}
+
+This notebook provides a GUI for sampling Google Street View images at intersections along known bicycle routes (the output of notebook 02 or 03).
+
+Update the ``Config'' to give it the name of the list of locations to sample from, usually ``pbn\_intersections.csv'' or ``osm\_intersections.csv''.  Then run it from top to bottom.  The last cell contains a GUI using ipywidgets.
+
+You will need to provide a Google Street View API key that is linked to your Google Account and billing info, as per \url{https://developers.google.com/maps/documentation/streetview/get-api-key}.  The API key is stored in a text file "apikey.txt" in the parent directory of the directory from which Jupyter Notebooks was run, usually the directory that also contains a copy of the ``minor\_thesis'' directory that was checked out from GitHub.
+
+You may need to enable ipywidgets in Jupyter Notebooks before running the ``jupyter notebooks'' command.  Please find instructions on the commands to do that online, they depend on whether Anaconda is being used, or MacOS, etc.
+
+See figure \ref{fig:gui} for a screenshot of the GUI.
+
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.25]{a001_gui.png}
+\caption{GUI for gathering Google Street View image dataset}
+\label{fig:gui}
+\end{figure}
+
+Four images are arranged on screen, with corresponding buttons ``Image 0'' through ``Image 3''.  The top-left image is ``Image 0'' and represents the forward-facing view at the sample location.  The bottom-right is ``Image 2'' and represents the rear-facing view.  The other two images show what appeared alongside the camera vehicle.
+
+The GUI will automatically open with the first randomly-selected sample point.  Examine the four images, and for each image where a bicycle lane marking appears, press the corresponding button to record the ``hit'' in the output CSV ``hits.csv''.  This will mark the image for inclusion in the dataset in the next stage of the process, when images are ``labelled''.  In the example in figure \ref{fig:gui}, a bicycle lane marking is clearly visible in the top-left image, and the operator would hit the ``Image 0'' button to record it.
+
+By default, the ``Offset'' and ``Correction'' text boxes are set to zero.
+
+If you see a bicycle lane marking off in the distance in the forward direction, and you want to move the camera closer to it, enter ``10'' in the ``Offset'' text box, and then press ``Move''.  The ``Status'' box will briefly mention that the next image is being loaded, and then the images will update to a camera position 10 metres down the road.  To move in the reverse direction, enter a negative offset.
+
+Moving forward or backward down the road depends on having the camera set at the correct heading for the road in the first place.  If the camera appears to have been placed so that the ``forward'' direction is at an angle to the road, correct it by entering  a number of degrees in the ``Correction'' text box, and then pressing ``Move''.  The orientation will shift.  Once you are happy the orientation is roughly aligned with the road, you can then enter an offset to move the camera to a better position.
+
+When you are finished trying to obtain sample images from this location, press the ``Next'' button to move to a new sample location.
+
+With practice, multiple sample images can be obtained per minute.  If there is no sign of any bicycle lane marking in the area, even in the distance, then you can quickly skip to the next location by pressing ``Next''.  It is not uncommon for the ``Principal Bicycle Network'' dataset to flag a route in a country town such as Warrnambool as an existing on-road bicycle route, only to find that all Google Street View images appear to show an informal paved shoulder, with no bicycle lane markings anywhere along the road.  If you can see bicycle lane marking in the immediate area, hit a button for each matching image and move on.  If you can see one off in the distance, move the camera 10 or 20 metres to capture it.
+
+Every set of images that is downloaded from Google Street View will be cached in the ``gsv'' directory under ``data\_sources''.
+
+The output of this notebook is a ``hits.csv'' file in ``data\_sources'' containing a list of cached Google Street View images where suitable bicycle lane markings were found.  You can monitor the size of ``hits.csv'' as you go along, to keep track of how many images you have found for your dataset.  Once you have enough images, proceed to notebook 05 for the labelling process.
+
+\subsection{05\_Copy\_GSV\_Images\_For\_Labelling}
+\label{aj05}
+
+In notebook 05, we take the Google Street View images previously identified, copy them to a single folder, label them with the ``labelImg'' tool, split them into ``training'' and ``test'' folders.
+
+The key ``Config'' items are a version suffix to give to the dataset, e.g. ``V1'', and the percentage of the dataset that should be held in reserve for ``testing'' of models and not included in the ``training'' data, e.g. ``20'' for 20\%.
+
+Do not run all cells of this notebook at once.  You will need to pause in the middle to run the external ``labelImg'' tool, from \url{https://github.com/tzutalin/labelImg}, or a suitable alternative.
+
+In the first part of the notebook, the code will take every image that was flagged in ``hits.csv'' during the notebook 04 process, and copy them all into a single ``dataset'' folder.
+
+After those cells have run, the notebook will tell you to stop and run the ``labelImg'' tool to ``label'' the data.  This involves telling ``labelImg'' where to find the new ``dataset'' folder with all the images, and then, one image at a time, you draw a bounding box around any object of interest, and give it a label, e.g. ``BikeLaneMarker'' for the bicycle lane markings we are training the model to look for.  See the instructions in the notebook and the official documentation for ``labelImg'' for more details.
+
+Once the labelling is done, you can proceed with running the final cell in the notebook, which will randomly select a percentage of the labelled images in the ``dataset'' file and move them to a ``test'' directory, with the version suffix specified in the ``Config''.  The remainder will be moved to an equivalent ``train'' directory.  The labelled images in the ``train'' and ``test'' directories are ready to be turned into ``tfrecord'' files suitable for TensorFlow processing in the next notebook.
+
+
+\subsection{06\_Model\_Training\_Setup}
+\label{aj06}
+
+The purpose of notebook 06 is to download and compile the required code to support TensorFlow Object Garden development, and to set up ``tfrecord'' files for training and validation of the models.
+
+This notebook is worth running one cell at a time, to watch for errors about missing dependencies, and address them with ``conda install'' or ``pip install'' as required.
+
+Cells 4 and 5 will download the required TensorFlow Object Garden code from GitHub, and then run the required ``protoc'' commands to set it up.
+
+Cell 6 will run a validation script to check that TensorFlow development has been set up correctly.  Not all errors will necessarily mean that the setup is broken, but watch its output to make sure you are not missing any dependencies.
+
+The final two cells will create a ``label map'' file, which must include all the labels that were used in ``labelImg'', and then convert the image and label data in the ``train'' and ``test'' dataset directories into ``tfrecord'' format, for use with TensorFlow.
+
+
+\subsection{07\_Model\_Training\_GSV}
+
+Notebook 07 allows you to download a pre-trained model from the TensorFlow 2 Object Garden, and configure it for training on the custom dataset.
+
+\url{https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md}
+
+In our case, we ran this notebook to configure multiple candidate models from the garden, before settling on the ``CenterNet HourGlass104 512x512'' model based on its performance.
+
+In the ``Config'' section, give the URL and Name of the pre-trained model you wish to download, from the table on the above ``TensorFlow 2 Detection Zoo'' webpage.  You can also specify the name you'd like to give to a model when it has been trained and you want to create a ``frozen'' model from it, e.g. ``centernet\_V1''.
+
+Then run the notebook from top to bottom.  The notebook will download the model, and update its configuration to look for our custom objects, instead of the ``COCO 17'' objects it was originally trained to detect.  In the results of the very last cell, it will print three commands that you can run manually, from a command prompt.  It is possible to update the notebook to run the commands from the notebook, but generally you get better, immediate feedback about the progress if you run them yourself from a command prompt.
+
+Run the first command to train the model on our ``train'' dataset for 2000 steps.  Every 100 steps, it will give you statistics how long it is taking to perform each step, on average, and ``loss'' statistics to show how well it thinks it is performing with the ``train'' data.  You can re-run this command with a higher number of training steps to continue the training from where it left off.
+
+The second command allows you to evaluate how the model performs with the ``test'' data that was withheld from training.  It can give you statistics such as ``mean Average Precision'' (mAP) and ``Total Loss''.  How did its predictions compare to the actual labelled bounding boxes in the test data?
+
+The third command allows you to make a smaller ``frozen'' copy of the model.  A ``frozen'' model is useful if you want to:
+
+\begin{itemize}
+\item{Keep a smaller copy of the model as-at a certain number of training steps}
+\item{Copy the model to a different system where it will be applied}
+\end{itemize}
+
+Use notebook 07 to download a pre-trained model and set it up for training, then run the training commands recommended by it until you are happy with the evaluation statistics and think it's ready to apply.  If the model does not perform well, you might need to review the dataset (possibly adding more images) or increase the number of training steps (if that is improving the performance) or switch to a different pre-trained model from the ``zoo''.
+
+The next notebook can help show how the model is performing beyond the statistics, and give insight into what it is struggling with.
+
+
+\subsection{08\_Apply\_Model\_to\_Train\_and\_Test\_GSV}
+\label{a08}
+
+The ``evaluation'' script in notebook 07 will take a model and apply it to the ``test'' data, and produce performance statistics as output.  If you want to \textit{see} how it is performing, notebook 08 can help.  It processes the data from the ``train'' and ``test'' directories, and outputs images that have been sorted into ``hits'' and ``miss'' directories depending on whether a bicycle lane marking was detected, and it will draw a bounding box and confidence score around any detection.
+
+In the ``Config'' section, give it the name of the model, which will either be the ``pretrained\_model\_name'' from notebook 07, or the ``frozen\_name'' if you created a ``frozen'' copy of the model.  Give it the version suffix of the dataset, e.g. ``V1''.  And then the ``confidence threshold'' at which the model should assume that an object has been detected, e.g. ``0.55'' means it will score a ``hit'' if its confidence is 0.55 or greater.
+
+Run it from top to bottom, and it will produce output in \url{detections/train_XXX} and \url{detecions/test_XXX} where \url{XXX} is the version suffix of the dataset.  Within those directories, there will be a \url{hits} folder and a \url{miss} folder, containing output images.  You can review the \url{hits} to see if it accurately placed bounding boxes around the detect objects.  You can review the \url{miss} folder to see the images where it failed to make a detection, where one was expected.  Were there any unusual challenges with the image?  Is it reasonable that the object might not have been clearly visible?  Would it help to add more images like this to the dataset?
+
+
+\subsection{09\_Filter\_OSM\_to\_Local\_Area}
+\label{a09}
+
+Notebooks 01 to 08 prepare and train a model to detect bicycle lane markings.  Next, we need to choose a ``survey area''.  We will use OpenStreetMap data for that area to identify locations to sample -- near each intersection -- and then we will download the images and process them with our model.
+
+The purpose of Notebook 09 is to create a geojson file describing the shape of a local area, such as a town or suburb, based on government-issued data.  We can then use this to extract OpenStreetMap data for that specific area, and use it as our ``survey area''.
+
+In the ``Config'' section, choose a suburb name as the ``locality\_name''.  It will expect to load the government-issued ``LGA\_boundaries\_VIC.geojson'' file from \url{data.gov.au} and reduce it down to a geojson name for the selected suburb.
+
+Download the OpenStreetMap data for Australia from \url{download.geofabrik.de} as instructed in the notebook.
+
+If you run the notebook from top-to-bottom, it will output two suggested ``osmium'' commands.  These are designed to reduce the full ``country-level'' extract of OpenStreetMap data down to data for the survey area.  The first command will reduce the data to the exact official shape of the suburb.  The second command will create an extract for a slightly bigger bounding box, to help identify intersections near the margin on the survey area.
+
+Install the ``osmium'' tool and run the commands suggested by the notebook to create the required OpenStreetMap extracts.
+
+
+\subsection{10\_Apply\_Model\_to\_Survey\_Area\_GSV\_Images}
+\label{a10}
+
+This notebook will identify sample points near intersections in the survey area, download Google Street View images, apply the model, and record any detected bicycle lane markings in the output ``detection\_log.csv''.
+
+If you wish to control Google Street View API costs, please run this notebook one cell at a time.
+
+In the first phase, it will use the OpenStreetMap extracts for the survey area, from notebook 09, to create a list of sample points within a certain number of metres of each intersection.  The ``margin'' parameter lets you specify how many metres either side of each intersection you want to sample.  If it is set to 0, the process will only take samples from the middle of each intersection.  If it is set to 10, it will also take samples 10 metres either side of the intersection.  The recommended setting is 20, because the Australian standards specify that a bicycle lane marking should be within 15 metres of every intersection, and the Google Street View API apparently only gives a distinct image every 10 metres.
+
+At the end of the first phase, the notebook will report how many sample points were identified for margins of 0m, 10m and 20m.  The process will be taking four images per sample point, so multiply the proposed number of sample points by four to get an estimate of the cost.  If there are too many sample points, consider using the ``osmium'' tool with its ``--bbox'' option to extract a smaller rectangular area within the suburb as a sample, instead of processing the whole town.
+
+If you proceed with the rest of the notebook with the proposed sample points, it will download the required images from Google Street View, process them with the model, record the detections to a subdirectory for the ``locality\_name'' within the ``detections'' directory, and create geojson files to be used with the maps in notebook 11.  It will infer detected routes from the detection locations according to some rules, and compare these to what OpenStreetMap said with its ``cycleway'' tags.  As part of the comparison, it will tell you how many metres of bicycle lane routes were detected, how many metres were tagged in OpenStreetMap, how many metres they agree, and how many metres each source had a route that the other one did not.
+
+The ``detections'' folder for the ``locality\_name'' will also have ``hits'' and ``miss'' folders where output images (with bounding box overlays) can be examined.  It can be helpful to quickly flick through the images in the ``miss'' folder to see if there are many clear bicycle lane markings that were missed.  It can also be helpful to flick through the ``hits'' folder to see if there were many false-positives, and what might have been causing them.
+
+
+\subsection{11\_Map\_Bicycle\_Lanes\_GSV}
+\label{a11}
+
+Notebook 11 produces interactive maps to view and compare bicycle lane routes for the survey area:
+
+\begin{itemize}
+\item{Map 1 shows each detection as a point on the map}
+\item{Map 2 shows the bicycle lane routes that were inferred from the detections}
+\item{Map 3 shows bicycle lane routes that are tagged as ``cycleway'' routes in OpenStreetMap}
+\item{Map 4 shows a comparison between the detected routes and OpenStreetMap, with different colours to represent where they agree, and where one had a route section that the other did not.}	
+\end{itemize}
+
+Set the survey area name in the ``Config'' section, and run the notebook from top to bottom.  You can zoom in and out and pan around each map as required.  The ``Config'' section allows you to set a default zoom level.
+
+
+\subsection{12\_Split\_Dashcam\_Footage}
+\label{a12}
+
+The next group of notebooks are dedicated to detecting bicycle lane routes from dash camera footage instead of Google Street View images.
+
+Notebook 12 expects to find a folder within ``data\_sources'' containing MP4 video files and associated NMEA files.  These came from a ``Navman MiVue 1100 Sensor XL DC Dual Dash Cam'' that records one MP4 video and one NMEA file per minute.
+
+In the ``Config'' section, specify the name of the folder containing the footage, this is effectively the ``survey area''.  You can also specify how many image frames you want to sample, up to the number of frames in the original footage.  E.g. you can reduce 60fps footage down to 5 frames per second.
+
+Run this notebook from top to bottom.  It will split the video files into images on disk, and create a file ``metadata.csv'' with the location for each image based on the NMEA data.
+
+The first progress bar shows how many of the video files have been processed.  Subsequent progress bars show progress through each individual video file as it loads.
+
+
+\subsection{13\_Copy\_Dashcam\_Images\_For\_Labelling}
+\label{a13}
+
+The first time you are processing dashcam footage, it is recommended that you skip straight to notebook 15 and attempt to detect bicycle lane markings with an existing model that was trained with Google Street View images.  That model will not necessarily have ideal performance on the dashcam images, which are taken from a different perspective, with different equipment, at a different resolution.  But running a first pass with the GSV model can help to quickly identify images that could be taken from the dashcam footage and added to the training and validation dataset.
+
+Use notebook 15 to process footage from a ``training'' area.  Then come back to this notebook 13.
+
+In the ``Config'' directory, set the version suffix for the previous GSV dataset that you wish to add to, e.g. ``V1''.  Then set the version suffix for the new dataset version you wish to create e.g. ``V2''.  Then start running the first few cells.
+
+Any ``hits'' from the initial training -- whether they are true positives or false positives -- will be read from the ``detection\_log.csv'' file by notebook 13, and copied to a ``dataset'' folder.
+
+Stop running the notebook, and label the images in the ``dataset'' folder with ``labelImg'' as directed.  To avoid false-positives, it was found to be helpful to label additional classes such as turning arrows, traffic islands, and give way markings, to avoid confusing their simple white markings with bicycle lane markings.  See the notebook instructions for further details.
+
+Once the images in the ``dataset'' directory have been labelled, continue running the notebook.  Existing ``train'' and ``test'' images from the previous dataset will be copied into this new version, according to their original splits.  Then any new images from the dashcam will be split into the ``train'' and ``test'' directories to join them.  Finally, ``tfrecord'' files will be created from them, for TensorFlow to use.
+
+
+\subsection{14\_Model\_Training\_Dashcam}
+\label{a14}
+
+Once new ``train'' and ``test'' datasets have been constructed, with dashcam images supplementing the original Google Street View images, we can train a new model.
+
+This notebook 14 is equivalent to notebook 07, but for the new dataset that includes dashcam images.  We select a pre-trained model that we want to work from, download it, and run the recommended training, evaluation, and model-freezing commands.
+
+Beware that if you give exactly the same ``pretrained\_model\_name'' as you did for GSV training, it will try to continue training that model where you left off.  You may prefer to give a different ``pretrained\_model\_name'' to start the training from scratch.
+
+
+\subsection{15\_Apply\_Model\_to\_Train\_and\_Test\_Dashcam}
+\label{a15}
+
+This notebook 15 is equivalent to notebook 08, but for the new dataset that includes dashcam images.  Run this notebook if you want to visualize the results of applying the model-in-training to the ``train'' and ``test'' datasets.
+
+
+\subsection{16\_Apply\_Model\_to\_Dashcam\_Footage}
+\label{a16}
+
+This notebook 16 is equivalent to notebook 09, instead of sampling Google Street View images near intersections, we are processing every image we extracted from the video footage in notebook 12.
+
+Based on the findings from cycling the ``training area'' footage through notebook 15 -> 13 -> 14 in a loop, some enhancements were made to the model to reduce false positives.  See the notebook and ``Methods'' section of this document for further details.
+
+In the ``Config'' section, you can specify the folder/location being surveyed, and the minimum confidence score required to flag a detection.  Specify the name of the model or frozen model you wish to use, and the dataset version prefix to ensure the correct label map file is used.
+
+The ``mask'' option allows you to specify which part of the frame to run detections on, instead of the whole frame.  This will exclude detections in areas where we do not expect to see a bicycle lane marking, and avoid some potential false positives.  The mask boundary will be drawn on the output images in the ``hits'' and ``miss'' folders, so you can see what was considered by the detection model.
+
+There are some further options to control how many detections are required in a general area before a detection is counted for the purposes of inferring a route.  This is to avoid false positives that occur in a single frame with nothing detected in adjacent frames.  By default, each detection requires two further detections within 50 metres, but a minimum of 10 metres away to avoid duplication when the camera is motionless.
+
+The end result of this notebook is a ``detection\_log.csv'' with all detection points, and ``detection\_log\_filtered.csv'' where one-off detection points that are not supported by nearby detections are excluded.
+
+
+\subsection{17\_Convert\_Detection\_Log\_to\_GeoJSON}
+\label{a17}
+
+In notebook 17, we take the ``detection\_log\_filtered.csv'' output from notebook 16, and correlate it to the OpenStreetMap data, infer bicycle lane routes, map them, and compare to the routes that are tagged as ``cycleway'' in the OpenStreetMap data.  Differences and agreement between routes are measured in metres, and geojson files are created in order to produce maps in the next notebook.
+
+Check the ``Config'' section to make sure the correct dashcam image folder has been specified for the survey area, along with the ``locality'' name for the OpenStreetMap extract.  Then run the notebook from top to bottom.
+
+
+\subsection{18\_Map\_Bicycle\_Lanes\_Dashcam}
+\label{a18}
+
+This notebook 18 is equivalent to notebook 11, except it is producing maps to view and compare routes that were detected from dash camera footage, instead of Google Street View images.
+
+\begin{itemize}
+\item{Map 1 shows the bicycle lane routes that were inferred from the detections}
+\item{Map 2 shows bicycle lane routes that are tagged as ``cycleway'' routes in OpenStreetMap, where the route was covered by the dash camera footage}
+\item{Map 3 shows a comparison between the detected routes and OpenStreetMap, with different colours to represent where they agree, and where one had a route section that the other did not.}	
+\end{itemize}
+
+
+\subsection{19\_Calibrate\_Dashcam}
+\label{a19}
+
+The final group of notebooks were used to demonstrate how the general technique of applying a model to images and correlating the result to existing geospatial data could be used to build a dataset about road infrastructure.  In this example, we looked at whether we could detect a ``paved shoulder'' to the left of the camera vehicle's lane, where a cyclist might ride their bike with some separation from other vehicles.  Future work could be looking at estimating lane widths, or detecting hazardous road surface defects, etc.
+
+Notebook 19 is used to calibrate a model to correct images from the dash camera to account for optical distortion.  Follow the instructions in the notebook (and the reference material linked in the notebook description) to print out a calibration tool that looks like a chessboard.  Record footage of this calibration tool being held up in front of the dash camera at different positions in the frame, at different distances from the camera.
+
+Update the ``Config'' to point to the folder where the calibration videos can be found, and record the number and size of the squares as printed on the calibration tool.  Then run the notebook.
+
+The notebook will split the video into images at 1 frame per second, then follow a standard OpenCV calibration process to produce a model.  The model will then be saved as a ``dashcam\_calibration.yml'' file in the ``data\_sources'' directory.
+
+At the bottom of the notebook, you will see an example of an original image from the dashcam, and a corrected image where the model has been applied to make straight lines appear straighter.
+
+
+\subsection{20\_Detect\_Paved\_Shoulders\_Dashcam}
+\label{a20}
+
+This notebook will re-process the video footage from a survey area, just as notebook 12 did.  But this time:
+
+\begin{itemize}
+\item{The model to correct for optical distortion, from notebook 19, will be applied, then...}
+\item{A ``lane detection'' model will be applied, to detect the camera's own lane and then the next lane to the left, if any}
+\item{The detected lane lines will be overlaid onto output images so that they can be visualized}
+\item{For each road segment, from intersection to intersection, an assessment is made as to whether there seems to be a paved shoulder, based on whether one was found in most images, whether it was wide enough, and whether the boundaries were stable enough across the frames in the group.  See the ``Methods'' section and the notebook for further explanation.}	
+\end{itemize}
+
+The first significant output of this process is the ``metadata\_with\_summary.csv'' file, which is recorded in the ``split'' subdirectory under the footage folder.  It contains one record per frame, with the summary statistics for the road segment that are used to decide whether there might be a paved shoulder along that segment, or not.
+
+Then, a geojson file is created, to allow us to draw on a map where the paved shoulder detection criteria was met in ``metadata\_with\_summary.csv''.  This is mapped in notebook 21.
+
+
+\subsection{21\_Map\_Paved\_Shoulders\_Dashcam}
+\label{a21}
+
+This notebook draws the detected ``paved shoulders'' from notebook 20 on a map, so that they can be visualized.  Most bicycle lanes should also appear as paved shoulders, so it is useful to compare this output to the other maps in notebooks 18 and 11.
+
 
 \cleardoublepage
 \bibliographystyle{IEEEtran}
 \bibliography{Bib/references.bib}
-\end{document}
-\end{document}
+\end{document}}
