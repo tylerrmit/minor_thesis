@@ -6,6 +6,7 @@
 \usepackage{a4wide,caption,epsfig,fancyheadings,url}
 \usepackage{subcaption}
 \usepackage{graphicx}
+
 \graphicspath{ {./Figs/} }
 \setcounter{secnumdepth}{3}
 
@@ -882,24 +883,105 @@ Discussion of limitations of the work
 \chapter{OpenStreetMap XML Concepts}
 \label{a:osm_concepts}
 
-Explain ways, nodes, tags, natural features, intersections...
+The use of OpenStreetMap XML extract data is fundamental to the solutions proposed in this research project.  In this appendix, we briefly describe some key concepts in the data, and provide example XML data to demonstrate them.
+
+\section{Ways}
+\label{osm:ways}
+
+A ``way'' in the OpenStreetMap XML data is a line that can be drawn on a map.  Typically, it will represent a road segment, as per the example in figure \ref{xml:way_st}.  However, it could also be the path of a natural feature such as a creek or coastline.  It could be an off-street walking track or bicycle trail.  Or it could be the boundary of a reserve or an estate.
+
+\begin{figure}[t]
+\centering
+\begin{verbatim}
+  <way id="26662301" version="32" timestamp="2020-08-27T04:26:02Z">
+    <nd ref="30204323"/>
+    <nd ref="638346068"/>
+    ...
+    <nd ref="2117131454"/>
+    <nd ref="638346153"/>
+    <tag k="cycleway:left" v="shared_lane"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Humphries Road"/>
+    <tag k="sidewalk" v="right"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+\end{verbatim}
+\caption{Sample OpenStreetMap XML ``way''}
+\label{xml:way_st}
+\end{figure}
+
+Each ``way'' has a unique ``id'', followed by a list of ``node references'' and ``tags''.
+
+The ``node reference'' links to a ``node'', which has a latitude/longitude position.  Therefore, the node reference list effectively describes path of the ``way'' if it were drawn on a map.
+
+The ``tags'' describe characteristics of the way.  In figure \ref{xml:way_st}, the ``way'' is a ``tertiary'' road named ``Humphries Road'' where the speed limit is 60 (kmph) and there is a bicycle lane and a sidewalk.
+
+A ``way'' can be only a \textit{part} of a longer road.  If different sections of a road have different properties, the road will be broken up into multiple ``ways''.  E.g. a change of speed limit would split the road into two ``ways''.
+
+\clearpage
+\section{Nodes}
+\label{osm:nodes}
+
+In a separate section of the OpenStreetMap XML file, each of the ``nodes'' are listed.  A ``node'' is a point on a map, usually just with a latitude and longitude, but occasionally they can have tags to describe special properties, such as the presence of traffic signals as in figure \ref{xml:way_nodes}.\\
+
+\begin{figure}[h]
+\centering
+\begin{verbatim}
+  <node id="30204322" version="18" timestamp="..." lat="-38.1655191" lon="145.1016428"/>
+  <node id="30204323" version="21" timestamp="..." lat="-38.1667063" lon="145.1017474">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="30204324" version="18" timestamp="..." lat="-38.1674697" lon="145.101785"/>	
+\end{verbatim}
+\caption{Sample OpenStreetMap XML ``nodes''}
+\label{xml:way_nodes}
+\end{figure}
+
+\section{Intersections}
+\label{osm:intersections}
+
+If a ``node'' is shared by two more ``ways'', it may be an intersection.  By checking the name of each ``way'' we can see whether it is an intersection, or just a ``node'' at which single road was split into two ways due to a change in a characteristic.
+
+Therefore, to find ``nodes'' that are intersections, look for ``nodes'' that are shared by ``ways'' with multiple distinct names.
+
+\section{Cycleways}
+\label{osm:cycleways}
+
+For the purposes of this project, if a ``way'' has a tag that begins with ``cycleway'', then OpenStreetMap believes that it has some sort of bicycle lane on at least one side of the road.  The ``bicycle'' tag typically appears to mean that bicycles are \textit{permitted}, but it may not mean that there is a dedicated bicycle lane.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Computer Environment}
 \label{a:environment}
 
-Two computers were used
-
 \section{Machine Learning workstation}
 \label{a:computer}
 
-Hyper-V
+This workstation was used for all machine learning activities.  TensorFlow 2.3 GPU acceleration was enabled via NVIDA cuDNN and CUDA drivers.
+
+\begin{itemize}
+\item{Windows 10}
+\item{Anaconda 3}
+\item{Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz}	
+\item{32GB RAM}
+\item{NVIDIA GeForce RTX 2080 Ti (12288MB dedicated, 16341MB shared}
+\item{1TB SSD}
+\end{itemize}
+
 
 \section{Nominatim server}
 \label{a:nominatim}
 
-Install instructions?
+This Linux server ran on a separate machine as a virtual host.  Its sole purpose was to run a Nominatim server for reverse-geocoding
+and geocoding services required by some Jupyter notebooks.
+
+\begin{itemize}
+\item{Ubuntu 20.04 running on Windows 10 under Hyper-V}
+\item{AMD Ryzen 7 3700X 8-core processor 3.6GHz}
+\item{16GB (32 GB for windows host)}
+\item{100MB SSD}
+\end{itemize}
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
