@@ -780,57 +780,160 @@ In this exercise, lane detection was attempted from the dash camera footage only
 \chapter{Results and Discussion}
 \label{s:results}
 
-\remark{Criteria 40: clear and complete presentation of results}
-
-\remark{Criteria 40: sufficient quantity of work}
-
-\remark{Criteria 40: appropriate intellectual level}
-
-\remark{Criteria 40: appropriate consideration of evidence in discussion}
-
-\remark{Criteria 40: uncertainty/error analysis}
-
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
+\label{results:rq1}
 
-\remark{Table showing training loss at each 100 epochs for multiple models}
 
-\remark{Table showing evaluation mAP at 5k 10k 15k 20k 25k 30k for multiple models}
+\subsection{Model Selection}
+
+Five pre-trained object detection models from the TensorFlow 2 Model Garden were trained and evaluated with the dataset of bicycle lane markings sourced from Google Street View.  The dataset was randomly split between ``training'' and ``test'' images according to an 80:20 split, with 20\% of the images withheld from training for an independent evaluation.
+
+Each candidate model was trained for 2,000 steps at a time, pausing after each set of 2,000 steps to evaluate the performance against the independent ``test'' dataset.  Training continued until it yielded no significant improvement to the mean Average Precision of bounding box detection when evaluated against the ``test'' dataset.  The number of training steps at which training was terminated for each candidate model, and the corresponding peak mean Average Precision achieved, is listed in table \ref{table1}.  The best-performed model out of those tested was the ``CenterNet HourGlass104 512x512'' model, with 8,000 training steps required.  The ``Faster R-CNN ResNet50 V1 640x640'' and ``SSD MobileNet V1 FPN 640x640'' models also yielded viable results, however the ``EfficientDet D1 640x640'' and ``SSD ResNet101 V1 FPN 640x640'' models failed to make any meaningful predictions with up to 4,000 training steps, and were quickly abandoned for this exercise.
+
+Figure \ref{fig:train_perf1} plots the Evaluation mean Average Precision of the three viable models against the number of training steps performed.
+
+\remark{TODO: Plot pretty chart from statistics gathered and replace the placeholder image}
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|}
+\hline
+\multicolumn{1}{|c|}{\bfseries Pre-Trained Model} & \textbf{Steps} & \textbf{Evaluation mean Average Precision} \\
+\hline
+CenterNet HourGlass104 512x512 & 8,000 & 0.795062 \\
+Faster R-CNN ResNet50 V1 640x640 & 14,000 & 0.685011 \\
+SSD MobileNet V1 FPN 640x640 & 8,000 & 0.669313 \\
+EfficientDet D1 640x640 & n/a & n/a \\
+SSD ResNet101 V1 FPN 640x640 & n/a & n/a \\
+\hline
+\end{tabular}
+\caption{Best evaluation mean Average Precision per pre-trained model}
+\label{table1}
+\end{table}
+
+
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.1]{a001_gui.png}
+\caption{Pretty Graph to show training stats}
+\label{fig:train_perf1}
+\end{figure}
+
+
+The ``CenterNet HourGlass104 512x512'' model was ``frozen'' at 8,000 training steps, and the tool documented in appendix \ref{aj08} was used to apply it to the ``test'' dataset manually, to review its outputs.  Out of 51 test images, it was able to correctly identify the bicycle lanes in XXX frames, a success rate of XXX\%.
+
+\remark{Reproduce the results with the frozen model, count the ``miss'' images and review.  Put examples ``miss'' images here and discuss.}
+
+The model was able to identify bicycle lane markings in Google Street View images at a very high rate, therefore it was chosen as the preferred model and used in the subsequent research to address research question 2:  Could the model be used to build a map of bicycle lane routes in an area via Google Street View images?
+
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ2: Building a map of bicycle lane routes from Google Street View images in an area}
+\label{results:rq2}
 
 \subsection{Mount Eliza}
 
-\remark{Detected Map}
+The model that was selected in section \ref{results:rq1} was applied to a sample survey area in the vicinity of Mount Eliza.  This area was chosen due to its accessibility:  It was one of very few areas with bicycle lanes that was reachable in view of the COVID-19 lockdown restrictions that were in place \cite{lockdown_record} \cite{lockdown_5km}.  As such, it was possible to validate the results via an in-person survey, in addition to comparing to other sources such as OpenStreetMap and the ``Principal Bicycle Network'' dataset.  It also allowed for comparison with results from dash cam footage in section \ref{results:rq3}.
 
-\remark{OpenStreetMap Map}
+Figure \ref{fig:rq2c} shows existing and planned bicycle routes in the area, according to the Principal Bicycle Network dataset.  The blue bounding box shows the survey area.  The red lines show ``existing'' routes, and the blue lines show ``planned'' routes.  The data is out of date.  It correctly records that there is an existing route on the Nepean Highway.  However, Humphries Road, the long straight ``planned'' route, has existed for several years, and so has the part of the Baden Powell Drive route that is drawn to the north-east of it.
 
-\remark{PBN Map}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{map1_5.png}
+\caption{Principal Bicycle Network existing and planned routes}
+\label{fig:rq2c}
+\end{figure}
 
-\remark{Comparison of Detected vs. OpenStreetMap}
+Figure \ref{fig:rq2a} shows the individual points that were detected within the survey area via Google Street View images within 20 metres of each intersection.  Figure \ref{fig:rq2b} shows the bicycle lane routes that were inferred from those detections.  The routes where both the detection model and OpenStreetMap agree that there is a bicycle lane are coloured green.  They agree that there is a bicycle lane on Humphries Road.  The OpenStreetMap data is missing the cycleway on the Nepean Highway, and the fragment of the Baden Powell Drive cycleway that was detected near the boundary of the survey area.
+
+Based on a manual survey of the area, and inspection of the Google Street View images that were downloaded, the detection model correctly detected all bicycle lanes within the survey area, with no false positives.
+ 
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{map1_1.png}
+	\caption{Detection Points within survey area}
+	\label{fig:rq2a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{map1_4.png}
+	\caption{Detected routes c.f. OpenStreetMap}
+	\label{fig:rq2b}
+\end{subfigure}
+\caption{Map of bicycle lanes in Mount Eliza based on Google Street View images}
+\label{fig:rq2}
+\end{figure}
+
 
 \subsection{Another suburb}
 
-\remark{Pick a suburb further in, residential like Carnegie?  Check OSM first.}
+\remark{I should pick another survey area closer to the city, and see if the Google Street View approach still works with more traffic and busier street scenes.  I will not be able to compare to the dashcam approach, and I will only be able to validate against OpenStreetMap and manual inspection of the Google Street View images and their dates to investigate any differences.}
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\clearpage
 \section{RQ3: Applying the process to dash camera footage}
+\label{results:rq3}
 
-\remark{Comparison of Detected vs. OpenStreetMap}
+Due to COVID-19 restrictions \cite{lockdown_5km} \cite{lockdown_record}, dash camera footage could only be gathered in a 15km radius.  Therefore, footage from the Frankston, Langwarrin and Baxter area was used to re-train and tune the detection model to work with dash camera footage, and it was tested against footage from Mount Eliza.
+
+\remark{Table with Steps and mean Average Precision of preferred model, like RQ1}
+
+\remark{Figure with a plot of mAP vs Steps, like RQ1}
+
+\remark{Comment on evaluation performance, number of false positives and false negatives}
+
+Figure \ref{fig:rq3} shows a comparison between the bicycle lanes in Mount Eliza that were detected based on dash camera images, and the routes that are recorded in OpenStreetMap as having bicycle lanes, for roads that were surveyed in the footage only.  The green routes show where there is agreement between the detection model and OpenStreetMap.  The blue routes show bicycle lanes that were detected but not recorded in OpenStreetMap.  The red routes show bicycle lanes that are recorded in OpenStreetMap but not detected.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{map2_3.png}
+\caption{Detected bicycle lanes in Mount Eliza based on dash camera images}
+\label{fig:rq3}
+\end{figure}
+
+The detection model detected three sections that are not recorded in OpenStreetMap.  The model was corrected on all three counts.  There is a cycleway on the Nepean Highway that has not been tagged in OpenStreetMap in the northern section depicted on the map  There is a narrow cycleway on Baden Powell Drive to the north-east of Humphries road.  And there is a cycleway on Two Bays Road to the south-east of the survey area.
+
+There is a short segment in the northern section of Mount Eliza Way where a bicycle lane is tagged in OpenStreetMap but was not detected by the model.  The detection model appears to be correct in this instance, the bicycle lane6 only extends as far as the roundabout at Kenaud Avenue.
+
+There is a segment on Wooralla Drive where a bicycle lane is tagged in OpenStreetMap.  This is an error, there is no bicycle lane on that road.
+
+There is a longer segment on the Nepean Highway, leading up to the intersection with Tower Road, where the detection model failed to draw a bicycle route.  This is the only part of the map where the detection model appears to have made an error.  During the survey, the camera vehicle turned into Tower Road and missed that segment.  If the vehicle had continued along Nepean Highway, it might have picked up the next bicycle lane marking and drawn a continuous route.
+
+Overall, the detection model performed well within the survey area, and it is possible that multiple surveys over multiple weeks would have filled in any gaps.  It detected three route segments that are not recorded on OpenStreetMap, and correctly identified two route segments that appear to be recorded in OpenStreetMap in error.  It missed one route segment that was recorded in OpenStreetMap.  Both OpenStreetMap and the detection model included several routes that are not listed in the ``Principal Bicycle Network'' dataset as existing routes.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\clearpage
 \section{RQ4: Surveying other infrastructure details using dash camera footage}
+\label{results:rq4}
+
 
 \remark{Produce map of paved shoulders, and discuss.  What is true?}
+
+xxx
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{map3_1.png}
+\caption{Detected paved shoulders in Mount Eliza based on dash camera images}
+\label{fig:rq3}
+\end{figure}
+
+xxx
+
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Limitations}
+\label{results:discussion}
+
+
 
 Discussion of limitations of the work
 
@@ -844,13 +947,19 @@ Discussion of limitations of the work
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
+\label{conclusion}
 
 \remark{Criteria 15: conclusions are supported by the observations/results/calculations}
 
 \remark{Criteria 15: conclusions relate to the original research questions/aims/hypotheses}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\appendix
 
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{OpenStreetMap XML Concepts}
