@@ -47,13 +47,13 @@
 
 
 Training command:
-python E:\Release\minor_thesis\contrib\model_main_tf2_mod.py --num_train_steps=30000 --model_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8 --pipeline_config_path=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8\pipeline.config
+python E:\Release\minor_thesis\contrib\model_main_tf2_mod.py --num_train_steps=36000 --model_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8 --pipeline_config_path=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8\pipeline.config
 ---
 Evaluation command:
 python E:\Release\minor_thesis\contrib\model_main_tf2_mod.py --model_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8 --pipeline_config_path=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8\pipeline.config --checkpoint_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8
 ---
 Freeze command:
-python E:\Release\TensorFlow\models\research\object_detection\exporter_main_v2.py --output_directory=E:\Release\TensorFlow\workspace\models\centernet_V2_30000 --input_type=image_tensor -pipeline_config_path=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8\pipeline.config --trained_checkpoint_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8
+python E:\Release\TensorFlow\models\research\object_detection\exporter_main_v2.py --output_directory=E:\Release\TensorFlow\workspace\models\centernet_V2_36000 --input_type=image_tensor -pipeline_config_path=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8\pipeline.config --trained_checkpoint_dir=E:\Release\TensorFlow\workspace\models\centernet_hg104_512x512_coco17_tpu-8
 
 
 
