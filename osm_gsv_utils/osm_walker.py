@@ -310,7 +310,7 @@ class osm_walker(object):
         
     # Get a series of points from one point to the next, at regular intervals up to a desired offset
     @staticmethod
-    def expand_offsets(lat1, lon1, lat2, lon2, max_offset, interval, way_id_start, way_id, node_id):
+    def expand_offsets(lat1, lon1, lat2, lon2, max_offset, interval, way_id_start, way_id, node_id, way_name='-'):
         sample_points = []
     
         bearing = Geodesic.WGS84.Inverse(float(lat1), float(lon1), float(lat2), float(lon2))['azi1']
@@ -337,7 +337,8 @@ class osm_walker(object):
                     step_i * interval * polarity,
                     way_id_start,
                     way_id,
-                    node_id
+                    node_id,
+                    way_name
                 ]
             
                 sample_points.append(sample_point)
@@ -380,7 +381,8 @@ class osm_walker(object):
                         interval,
                         way_id_start,
                         way_id,
-                        ref
+                        ref,
+                        self.way_names_by_id[way_id]
                     )
                 
                     sample_points = sample_points + prev_points[::-1] # Reversed with slicing
@@ -403,7 +405,7 @@ class osm_walker(object):
                     )
 
                 sample_point = [
-                    float(self.nodes[ref].getAttribute('lat')), float(self.nodes[ref].getAttribute('lon')), bearing, 0, way_id_start, way_id, ref
+                    float(self.nodes[ref].getAttribute('lat')), float(self.nodes[ref].getAttribute('lon')), bearing, 0, way_id_start, way_id, ref, self.way_names_by_id[way_id]
                 ]
                         
                 sample_points.append(sample_point)
@@ -419,7 +421,8 @@ class osm_walker(object):
                         interval,
                         way_id_start,
                         way_id,
-                        ref
+                        ref,
+                        self.way_names_by_id[way_id]
                     )
             else:
                 if debug:
