@@ -1,0 +1,5 @@
+# 145.052,-37.750 x 145.078,-37.766
+
+osmium extract --bbox=145.052,-37.750,145.078,-37.767 australia-latest.osm.pbf -o Locality_Heidelberg_Sample.osm
+osmium extract --bbox=145.050,-37.748,145.080,-37.769 australia-latest.osm.pbf -o Locality_Heidelberg_Sample_margin.osm
+
