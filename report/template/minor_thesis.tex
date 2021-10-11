@@ -236,7 +236,7 @@ In order to train a deep learning model to recognise bicycle lane markings in st
 
 The official Australian design standards for bicycle lanes specify that bicycle lane markings should appear within 15m of each intersection \cite{standards}.  Therefore, intersections along known bicycle lane routes are the locations where example images are most likely to be found.
 
-Campbell et al., 2019 \cite{CAMPBELL2019101350} successfully trained a deep learning model to recognise ``Stop'' and ``Give Way'' signs with 500 example images of each.  Therefore, an initial dataset of 500 bicycle lane marking example images was gathered, with an option to gather more images later, if necessary.
+Campbell et al., 2019 \cite{CAMPBELL2019101350} successfully trained a deep learning model to recognise ``Stop'' and ``Give Way'' signs with 500 example images of each.  Therefore, an initial dataset of 256 bicycle lane marking example images was gathered, with an option to gather more images later, if necessary, and an expectation that perhaps around 500 images might eventually be required.
 
 A Jupyter Notebook was created to allow an operator to efficiently review Google Street View images from intersections along known bicycle lane, and record which image files included the required examples.  These images could then be ``labelled'', to record a precise bounding box around each bicycle lane marking in a format suitable for the TensorFlow 2 framework.
 
@@ -286,7 +286,7 @@ It was found that the best location to look for a bicycle lane marking was not a
 
 Generally, an image was accepted for inclusion in the dataset if the bicycle lane marking was clear and unambiguous without needing to take cues from the overall scene context.  If the symbol was so far away that it looked like a white blob on the road, and it could only be understood to be a bicycle lane marking based on its position relative to lane markings, then the image was not included, though the operator had the option of moving the camera closer for a better image.
 
-The Jupyter Notebook allowed multiple candidate intersections to be assessed per minute, and an initial set of 500 images was collected over the course of approximately 4 hours.
+The Jupyter Notebook allowed multiple candidate intersections to be assessed per minute, and an initial set of 256 images was collected over the course of approximately 4 hours.
 
 Please see Appendix \ref{aj04} for detailed instructions on how to use the supplied Jupyter Notebook to download Google Street View images for sample candidate intersections, and flag matching images in an output CSV file for inclusion in the labelled dataset.
 
@@ -562,6 +562,7 @@ Once the detection coordinates have been aligned to the OpenStreetMap coordinate
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ4: Surveying other infrastructure details using dash camera footage}
+\label{s:rq4}
 
 Once dash camera footage had been used to map bicycle lane routes in a survey area, some further work was conducted to demonstrate how the approach might be re-used to survey other details of interest.  To demonstrate future potential, a process was created to map any paved shoulders on the side of the roads in the survey area that cyclists might ride on achieve physical separation from motor vehicles.  Previous studies such as Klobucar \& Fricker, 2007 \cite{BIKESAFETY} have observed that a paved shoulder can improve cyclist safety, even if it is not formally marked as a bicycle lane.
 
@@ -571,6 +572,7 @@ To identify a paved shoulder, it is necessary to detect lane markings, and the e
 
 
 \subsection{Correcting for lens distortion}
+\label{s:rq4a}
 
 Lens distortion is where the optical properties of a camera's lens causes straight lines to appear curved in an image.  The ``OpenCV'' library provides a method to correct distortion for a specific camera \cite{distortion}.  The camera is used to capture a range of images where a special calibration tool appears in frame.  See figure \ref{fig:calibration} for some example images.  An image of a ``chessboard'' pattern of known dimensions is held in front of the camera in different positions.
 
@@ -619,6 +621,7 @@ The most obvious sign that the correction has been applied in this example is th
 
 
 \subsection{Detecting lane markings}
+\label{s:rq4b}
 
 A common solution to the problem of detecting lane markings involves applying a combination of the Canny edge detection algorithm proposed by Canny, 1987 \cite{canny} and the Hough transformation proposed by Hough, 1972 \cite{hough}.  This general approach has been followed in many papers such as Li et al, 2016 \cite{canny_example} and Chai et al, 2014 \cite{canny_example2}, and it is frequently used in capstone projects in the self-driving car domain.  At its most basic, the approach does not involve any machine learning or deep learning techniques.
 
@@ -733,6 +736,7 @@ Figure \ref{fig:011c} shows a false positive match, where ``noise'' from a park 
 
 
 \subsection{Mapping paved shoulders across a survey area}
+\label{s:rq4c}
 
 The Canny/Hough lane detection method can be applied to all sample frames from the survey area, using a similar batch process to the bicycle lane detection process in section \ref{s:rq3} and substituting a different detection model.  The challenge is setting robust criteria for flagging a ``detection'' that will result in a sensible map.  The simplest criteria would be to look for frames where lines were detected for both the left and right boundaries of a paved shoulder.  This criteria was applied to the training area footage, and the resulting images with detection line overlays were reviewed in chronological order.  The results were very inconsistent.
 
@@ -788,14 +792,9 @@ In this exercise, lane detection was attempted from the dash camera footage only
 
 \subsection{Model Selection}
 
-Five pre-trained object detection models from the TensorFlow 2 Model Garden were trained and evaluated with the dataset of bicycle lane markings sourced from Google Street View.  The dataset was randomly split between ``training'' and ``test'' images according to an 80:20 split, with 20\% of the images withheld from training for an independent evaluation.
+An initial dataset of 256 Google Street View images was gathered, with the option to gather more, if necessary, to satisfy either of the first two research questions.  They were labelled and split into 205 ``training''  images and 51 ``test'' images, according to an 80:20 split.  Five pre-trained object detection models from the TensorFlow 2 Model Garden were trained and evaluated using these ``training'' and ``test'' datasets, through a process of transfer learning.
 
-Each candidate model was trained for 2,000 steps at a time, pausing after each set of 2,000 steps to evaluate the performance against the independent ``test'' dataset.  Training continued until it yielded no significant improvement to the mean Average Precision of bounding box detection when evaluated against the ``test'' dataset.  The number of training steps at which training was terminated for each candidate model, and the corresponding peak mean Average Precision achieved, is listed in table \ref{table1}.  The best-performed model out of those tested was the ``CenterNet HourGlass104 512x512'' model, with 8,000 training steps required.  The ``Faster R-CNN ResNet50 V1 640x640'' and ``SSD MobileNet V1 FPN 640x640'' models also yielded viable results, however the ``EfficientDet D1 640x640'' and ``SSD ResNet101 V1 FPN 640x640'' models failed to make any meaningful predictions with up to 4,000 training steps, and were quickly abandoned for this exercise.
-
-Figure \ref{fig:train_perf1} plots the Evaluation mean Average Precision of the three viable models against the number of training steps performed.
-
-\remark{TODO: Plot pretty chart from statistics gathered and replace the placeholder image}
-
+Each candidate model was trained for 2,000 steps at a time, with training paused every 2,000 steps to evaluate performance against the ``test'' dataset.  Training continued until it yielded no significant improvement to the mean Average Precision of bounding box detection when evaluated against the ``test'' dataset.  
 
 \begin{table}[h]
 \centering
@@ -803,32 +802,60 @@ Figure \ref{fig:train_perf1} plots the Evaluation mean Average Precision of the 
 \hline
 \multicolumn{1}{|c|}{\bfseries Pre-Trained Model} & \textbf{Steps} & \textbf{Evaluation mean Average Precision} \\
 \hline
-CenterNet HourGlass104 512x512 & 8,000 & 0.795062 \\
-Faster R-CNN ResNet50 V1 640x640 & 14,000 & 0.685011 \\
-SSD MobileNet V1 FPN 640x640 & 8,000 & 0.669313 \\
+CenterNet HourGlass104 512x512 & 2,000 & 0.691116 \\
+Faster R-CNN ResNet50 V1 640x640 & 2,000 & 0.476506 \\
+SSD MobileNet V1 FPN 640x640 & 2,000 & 0.599674 \\
 EfficientDet D1 640x640 & n/a & n/a \\
 SSD ResNet101 V1 FPN 640x640 & n/a & n/a \\
 \hline
 \end{tabular}
-\caption{Best evaluation mean Average Precision per pre-trained model}
+\caption{Bounding Box mean Average Precision per pre-trained model (2,000 training steps)}
 \label{table1}
 \end{table}
 
+Table \ref{table1} lists the five pre-trained object detection models that were tested, and the mean Average Precision of their bounding box detection when evaluated on the ``test'' dataset after 2,000 training steps.  The ``EfficientDet D1 640x640'' and ``SSD ResNet101 V1 FPN 640x640'' were unable to detect any bicycle lane markings even after 4,000 training steps, so training on them was ceased, to focus on the other three models that were producing more immediate results.
 
 \begin{figure}[h]
 \centering
-\includegraphics[scale=0.1]{a001_gui.png}
-\caption{Pretty Graph to show training stats}
-\label{fig:train_perf1}
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_gsv_loss.png}
+	\caption{`Training ``Total Loss''}
+	\label{fig:rq1a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_gsv_map.png}
+	\caption{Evaluation ``mean Average Precision''}
+	\label{fig:rq1b}
+\end{subfigure}
+\caption{Training and Evaluation of Detection Models based on Google Street View images}
+\label{fig:rq2}
 \end{figure}
 
+Figure \ref{fig:rq1a} shows the ``Total Loss'' reported during training of the three remaining models.  All three models reached a point of diminishing returns at 2,000 training steps.
 
-The ``CenterNet HourGlass104 512x512'' model was ``frozen'' at 8,000 training steps, and the tool documented in appendix \ref{aj08} was used to apply it to the ``test'' dataset manually, to review its outputs.  Out of 51 test images, it was able to correctly identify the bicycle lanes in XXX frames, a success rate of XXX\%.
+Figure \ref{fig:rq1b} shows the Bounding Box mean Average Precision during evaluation with the ``test'' dataset.  Continuing the training beyond 2,000 training steps yielded small improvements in that metric.  However, the most important measure of success for this model was whether it could correctly identify whether a bicycle lane marking appeared in an image or not.  It was not necessary to know precisely where the bounding box was, so improvements to the Bounding Box mean Average Precision only help up to a point.  Using the tool described in appendix \ref{a08}, each of the three models were applied to the ``training'' dataset and the ``test'' dataset, to inspect its predictions for each image.  The images were examined to confirm that the bounding boxes were drawn in a sensible location, and to confirm whether the model had successfully found a bicycle lane marking in each image.  The results are recorded in \ref{table2}.
 
-\remark{Reproduce the results with the frozen model, count the ``miss'' images and review.  Put examples ``miss'' images here and discuss.}
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|r|r|}
+\hline
+\multicolumn{1}{|c|}{\bfseries Pre-Trained Model} & \textbf{Train false -ve} & \textbf{Test false -ve}\\
+\hline
+CenterNet HourGlass104 512x512 & 11 & 13 \\
+Faster R-CNN ResNet50 V1 640x640 & 0 & 0 \\
+SSD MobileNet V1 FPN 640x640 & 30 & 9 \\
+\hline
+\end{tabular}
+\caption{Errors in the detection of bicycle lane markings in the ``train'' and ``test'' datasets after 2,000 training steps}
+\label{table2}
+\end{table}
 
-The model was able to identify bicycle lane markings in Google Street View images at a very high rate, therefore it was chosen as the preferred model and used in the subsequent research to address research question 2:  Could the model be used to build a map of bicycle lane routes in an area via Google Street View images?
+The ``Faster R-CNN ResNet50 V1 640x640'' model was able to successfully locate a bicycle lane marking in \textit{every single image in ``training'' and ``test'' datasets where one appeared}.  It was not fooled by a single image with \textit{no bicycle lane markings} that had been included in the ``training'' dataset.
 
+The ``Faster R-CNN ResNet50 V1 640x640'' model, trained to 2,000 training steps, was chosen as the preferred model, and used to create a bicycle lane route maps for research question 2.
+
+The initial dataset of 256 images appeared to be sufficient to get reliable detection results with this model, so no further images were collected from Google Street View for the ``training'' and ``test'' datasets.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -837,9 +864,9 @@ The model was able to identify bicycle lane markings in Google Street View image
 
 \subsection{Mount Eliza}
 
-The model that was selected in section \ref{results:rq1} was applied to a sample survey area in the vicinity of Mount Eliza.  This area was chosen due to its accessibility:  It was one of very few areas with bicycle lanes that was reachable in view of the COVID-19 lockdown restrictions that were in place \cite{lockdown_record} \cite{lockdown_5km}.  As such, it was possible to validate the results via an in-person survey, in addition to comparing to other sources such as OpenStreetMap and the ``Principal Bicycle Network'' dataset.  It also allowed for comparison with results from dash cam footage in section \ref{results:rq3}.
+The model that was selected in section \ref{results:rq1} was applied to a sample survey area in the vicinity of Mount Eliza.  This area was chosen due to its accessibility:  It was one of very few areas with bicycle lanes that was reachable within the COVID-19 lockdown restrictions that were in place at the time\cite{lockdown_record} \cite{lockdown_5km}.  It was therefore possible to validate the results via an in-person survey, in addition to comparing the results to online sources such as OpenStreetMap and the ``Principal Bicycle Network'' dataset.  It also allowed for comparison with results from dash camera footage in section \ref{results:rq3}.
 
-Figure \ref{fig:rq2c} shows existing and planned bicycle routes in the area, according to the Principal Bicycle Network dataset.  The blue bounding box shows the survey area.  The red lines show ``existing'' routes, and the blue lines show ``planned'' routes.  The data is out of date.  It correctly records that there is an existing route on the Nepean Highway.  However, Humphries Road, the long straight ``planned'' route, has existed for several years, and so has the part of the Baden Powell Drive route that is drawn to the north-east of it.
+A total of 1,113 locations were sampled from the survey area, at points within 20 metres of every intersection.  Four images were downloaded via the Google Street View API at each location, a total of 4,452 images at a cost of approximately \$31 USD.  The exact survey area within Mount Eliza was chosen to include a mix of roads with and without bicycle lanes, a mix of residential and commercial areas, ranging from no-through roads to a highway.
 
 \begin{figure}[h]
 \centering
@@ -848,10 +875,8 @@ Figure \ref{fig:rq2c} shows existing and planned bicycle routes in the area, acc
 \label{fig:rq2c}
 \end{figure}
 
-Figure \ref{fig:rq2a} shows the individual points that were detected within the survey area via Google Street View images within 20 metres of each intersection.  Figure \ref{fig:rq2b} shows the bicycle lane routes that were inferred from those detections.  The routes where both the detection model and OpenStreetMap agree that there is a bicycle lane are coloured green.  They agree that there is a bicycle lane on Humphries Road.  The OpenStreetMap data is missing the cycleway on the Nepean Highway, and the fragment of the Baden Powell Drive cycleway that was detected near the boundary of the survey area.
+Figure \ref{fig:rq2c} shows existing and planned bicycle routes in the area, according to the ``Principal Bicycle Network'' dataset.  The blue bounding box shows the survey area.  The red lines show ``existing'' routes, and the blue lines show ``planned'' routes.  The ``Principal Bicycle Network'' dataset is out of date.  It correctly records that there is an existing route on the Nepean Highway, in red.  However, the long straight ``planned'' route, Humphries Road, has existed for at least several years, and so has the route to the north-east of it, on Baden Powell Drive.
 
-Based on a manual survey of the area, and inspection of the Google Street View images that were downloaded, the detection model correctly detected all bicycle lanes within the survey area, with no false positives.
- 
 \begin{figure}[h]
 \centering
 \begin{subfigure}{0.45\textwidth}
@@ -869,10 +894,16 @@ Based on a manual survey of the area, and inspection of the Google Street View i
 \label{fig:rq2}
 \end{figure}
 
+Figure \ref{fig:rq2a} shows the individual points that were detected by the model, from Google Street View images sampled near intersections in the survey area.  Figure \ref{fig:rq2b} shows the bicycle lane routes that were inferred from those detections, according to the method described in section \ref{s:rq2c}.  The routes in figure \ref{fig:rq2b} are colour-coded to highlight areas of agreement and disagreement between the detection model and OpenStreetMap.  Where both the detection model and OpenStreetMap agree that there is a bicycle lane, routes are coloured green.  They agree that there is a bicycle lane on Humphries Road.  Routes that were detected by the model but not recorded with a ``cycleway'' tag in OpenStreetMap are coloured blue.  The OpenStreetMap data is missing the cycleway on the Nepean Highway, and the fragment of the Baden Powell Drive cycleway that was detected near the boundary of the survey area.  Routes that are recorded in OpenStreetMap but were not detected would be coloured red, however there were no such routes in this survey.
 
-\subsection{Another suburb}
+\remark{COMPARISON IN METRES}
 
-\remark{I should pick another survey area closer to the city, and see if the Google Street View approach still works with more traffic and busier street scenes.  I will not be able to compare to the dashcam approach, and I will only be able to validate against OpenStreetMap and manual inspection of the Google Street View images and their dates to investigate any differences.}
+Based on an in-person survey of the area, and inspection of the Google Street View images that were downloaded, the detection model correctly detected all bicycle lanes within the survey area, with no false positives, and it identified two routes that had not been recorded in OpenStreetMap.
+ 
+
+\subsection{Heidelberg}
+
+\remark{Running the model against another suburb closer to the city, where I can ask for help with an in-person survey if anything needs to be validated.}
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -880,13 +911,87 @@ Based on a manual survey of the area, and inspection of the Google Street View i
 \section{RQ3: Applying the process to dash camera footage}
 \label{results:rq3}
 
-Due to COVID-19 restrictions \cite{lockdown_5km} \cite{lockdown_record}, dash camera footage could only be gathered in a 15km radius.  Therefore, footage from the Frankston, Langwarrin and Baxter area was used to re-train and tune the detection model to work with dash camera footage, and it was tested against footage from Mount Eliza.
+\subsection{Re-training the model for dash camera footage}
 
-\remark{Table with Steps and mean Average Precision of preferred model, like RQ1}
+Due to COVID-19 restrictions \cite{lockdown_record} \cite{lockdown_5km}, dash camera footage could only be gathered in a circular area with a 15km radius, much of which was a body of water.  Therefore, the range of areas available to gather dash camera footage for research question 3 was restricted to a handful of outer metropolitan suburbs.  Footage from the Frankston, Langwarrin and Baxter area was used to train a the detection model to work with dash camera footage, and then footage from Mount Eliza was used to test it.
 
-\remark{Figure with a plot of mAP vs Steps, like RQ1}
+Training was conducted as per the approach documented in section \ref{s:rq3}.  Initially, the original model from section \ref{results:rq2} that had been trained exclusively on Google Street View images was used to process the dash camera footage from the training area.  The initial positive matches -- whether true positives or false positives -- were added to the ``training'' and ``test'' datasets according to an 80:20 split.  The resulting ``training'' dataset consisted of 205 Google Street View images and 252 dash camera images.  The ``test'' dataset consisted of 51 Google Street View images and 85 dash camera images.
 
-\remark{Comment on evaluation performance, number of false positives and false negatives}
+Another ``Faster R-CNN ResNet50 V1 640x640'' model was then trained and evaluated using the combined Google Street View / dash camera footage datasets.  To deal with remaining false-positives, the dash camera images were labelled with additional classes to distinguish common misleading features from bicycle lane markings, and a detection mask was applied to remove reflections from the bonnet of the car and distractions from the right hand side of the road.  Please see section \ref{s:rq3} for a full discussion of these enhancements.  The results observed from the model after every 2,000 training steps are recorded in figure \ref{fig:rq3} and table \ref{table3}.
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_dash_loss.png}
+	\caption{`Training ``Total Loss''}
+	\label{fig:rq3a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_dash_map.png}
+	\caption{Evaluation ``mean Average Precision''}
+	\label{fig:rq3b}
+\end{subfigure}
+\caption{Training and Evaluation of Detection Models based on dash camera images}
+\label{fig:rq3}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|r|r|r|r|}
+\hline
+\textbf Model & \textbf{Steps} & \multicolumn{3}{|c|}{\bfseries Train} & \multicolumn{3}{|c|}{\bfseries Test} \\
+& & \textbf{Total Loss} & \textbf{False +ve} & \textbf{False -ve} & \textbf{mAP} & \textbf{False +ve} & \textbf{False -ve} \\
+\hline
+Faster R-CNN & 2,000 & 0.0852 & 1 & 8 & 0.293945 & 3 & 9 \\
+Faster R-CNN & 4,000 & 0.0985 & 0 & 8 & 0.428875 & 1 & 2 \\
+Faster R-CNN & 6,000 & 0.0298 & 0 & 0 & 0.430906 & 3 & 3 \\
+Faster R-CNN & 8,000 & 0.0222 & 0 & 0 & 0.443913 & 1 & 2 \\
+Faster R-CNN & 10,000 & 0.0292 & 0 & 0 & 0.46007 & 2 & 2 \\
+Faster R-CNN & 12,000 & 0.011 & 0 & 0 & 0.458306 & 0 & 1 \\
+\hline
+\end{tabular}
+\caption{Training and evaluation results for the Faster RCNN model with dash camera footage}
+\label{table3}
+\end{table}
+
+Figures \ref{fig:rq3a} and \ref{fig:rq3b} show that there were diminishing returns from further training beyond 4,000 to 6,000 training steps, in terms of both the ``Total Loss'' reported in the training process, and the ``mean Average Precision'' of the bounding boxes reported from the evaluation process against the ``test'' dataset.
+
+The model was applied to the ``training'' and ``test'' images via the tool documented in appendix \ref{a15} to examine the bounding boxes it chose to draw, and whether it believed there was a detection or not.  The results of this review are found in the ``False +ve'' and ``False -ve'' columns in Table \ref{table3}.  After 6,000 training steps, the model was able correctly detect all bicycle lane images in the ``training'' data, with no false positives, false negatives, or misplaced bounding boxes.  In the test data, there were a total of 3 false positives and 3 false negatives out of 136 test images.  These false results came from  a mix of Google Street View images and dash camera images.  After 8,000 training steps, the performance improved further, in that there was 1 false positive and 2 false negatives when analysing the test data, and these were all for challenging Google Street View images.  See figure \ref{rq3c}.
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.3\textwidth}
+	\includegraphics[width=\textwidth]{V2_8000_FP1.jpg}
+	\caption{False Positive GSV image example}
+	\label{rq3c-a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.3\textwidth}
+	\includegraphics[width=\textwidth]{V2_8000_FN1.jpg}
+	\caption{False Negative GSV image example 1}
+	\label{rq3c-b}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.3\textwidth}
+	\includegraphics[width=\textwidth]{V2_8000_FN2.jpg}
+	\caption{False Negative GSV image example 2}
+	\label{rq3c-c}
+\end{subfigure}
+
+\caption{False Positive and False Negative results recorded when applying the preferred Faster R-CNN model to the combined Google Street View and dash camera ``test'' dataset, after 8,000 training steps}
+\label{fig:rq3c}
+\end{figure}
+
+In figure \ref{rq3c-a}, the model has correctly identified two bicycle lane markings in the central business district of Melbourne, but it has also identified a white strip that was installed at a pedestrian crossing to assist people with impaired vision.  A very high confidence of 95\% was assigned to the false positive detection.  To assist the model to deal with this situation better, more training images would be required, with these objects given a label to steer the model away from thinking of them as a bicycle lane marking.
+
+In figure \ref{rq3c-b}, the model has missed a very faint bicycle lane marking that was alongside the camera vehicle, in the shadow of the vehicle.  This was a very challenging image due the the faintness of the marking, and it was common for the models tested in this research project to miss it.
+
+In figure \ref{rq3c-c}, the model has missed a bicycle lane marking on the opposite side of the road, at a challenging angle and distance.  In general, most models struggled with this test image as well.
+
+Because the few issues at 8,000 training steps exclusively involved challenging Google Street View images, and research question 3 involved applying a model to dash camera footage where no such issues were detected, and many more frames would be available to compensate for any missed detections, training was terminated after 8,000 steps.  The model was then used to conduct a survey of dash camera footage in the testing area of Mount Eliza.
+
+\subsection{Generating and comparing maps}
 
 Figure \ref{fig:rq3} shows a comparison between the bicycle lanes in Mount Eliza that were detected based on dash camera images, and the routes that are recorded in OpenStreetMap as having bicycle lanes, for roads that were surveyed in the footage only.  The green routes show where there is agreement between the detection model and OpenStreetMap.  The blue routes show bicycle lanes that were detected but not recorded in OpenStreetMap.  The red routes show bicycle lanes that are recorded in OpenStreetMap but not detected.
 
@@ -897,13 +1002,15 @@ Figure \ref{fig:rq3} shows a comparison between the bicycle lanes in Mount Eliza
 \label{fig:rq3}
 \end{figure}
 
-The detection model detected three sections that are not recorded in OpenStreetMap.  The model was corrected on all three counts.  There is a cycleway on the Nepean Highway that has not been tagged in OpenStreetMap in the northern section depicted on the map  There is a narrow cycleway on Baden Powell Drive to the north-east of Humphries road.  And there is a cycleway on Two Bays Road to the south-east of the survey area.
+The model detected three sections that are not recorded in OpenStreetMap.  The model was corrected on all three counts.  There is a cycleway on the Nepean Highway that has not been tagged in OpenStreetMap in the northern section depicted on the map  There is a narrow cycleway on Baden Powell Drive to the north-east of Humphries road.  And there is a cycleway on Two Bays Road to the south-east of the survey area.
 
 There is a short segment in the northern section of Mount Eliza Way where a bicycle lane is tagged in OpenStreetMap but was not detected by the model.  The detection model appears to be correct in this instance, the bicycle lane6 only extends as far as the roundabout at Kenaud Avenue.
 
 There is a segment on Wooralla Drive where a bicycle lane is tagged in OpenStreetMap.  This is an error, there is no bicycle lane on that road.
 
 There is a longer segment on the Nepean Highway, leading up to the intersection with Tower Road, where the detection model failed to draw a bicycle route.  This is the only part of the map where the detection model appears to have made an error.  During the survey, the camera vehicle turned into Tower Road and missed that segment.  If the vehicle had continued along Nepean Highway, it might have picked up the next bicycle lane marking and drawn a continuous route.
+
+\remark{COMPARISON IN METRES}
 
 Overall, the detection model performed well within the survey area, and it is possible that multiple surveys over multiple weeks would have filled in any gaps.  It detected three route segments that are not recorded on OpenStreetMap, and correctly identified two route segments that appear to be recorded in OpenStreetMap in error.  It missed one route segment that was recorded in OpenStreetMap.  Both OpenStreetMap and the detection model included several routes that are not listed in the ``Principal Bicycle Network'' dataset as existing routes.
 
@@ -913,19 +1020,32 @@ Overall, the detection model performed well within the survey area, and it is po
 \section{RQ4: Surveying other infrastructure details using dash camera footage}
 \label{results:rq4}
 
+\subsection{Tuning the Paved Shoulder Detection Model thresholds}
 
-\remark{Produce map of paved shoulders, and discuss.  What is true?}
+The model proposed in section \ref{s:rq4} was first applied to the training area footage from Frankston, Langwarrin, and Baxter, and then validated against the same test area footage from Mount Eliza as used for research question 3.
 
-xxx
+It was found that, when processing an individual frame, the proposed method was vulnerable to ``noise'' from objects just outside the paved area, as discussed in section \ref{s:rq4c}.  The Canny/Hough approach to lane detection is typically applied to detecting the camera vehicle's own lane, and it can therefore limit the effect of off-road features by applying a mask that obscures anything not in the triangle directly in front of the vehicle.  If the mask includes everything immediately in front of the vehicle, but is too restrictive to see the lane markings, then that may not be an issue:  The vehicle is within its lane, even if it can't see the lines.  In this research project, the Canny/Hough approach was used to try to detect the next ``lane'' over, after detecting the camera vehicle's own lane.  It cannot be as aggressive at masking of areas that might or might not be off-road.
+
+To limit the impact of these issues, the model grouped the frames for each road segment, from intersection to intersection, and assessed them collectively, as described in section \ref{s:rq4c}.  Summary metrics were calculated for each group of frames, to assess how frequently a paved shoulder was detected along the road segment, how wide any detected paved shoulder appeared to be on average, and how stable the lines were from frame to frame -- did the detected lines jump around a lot?
+
+The process produced a CSV with one record per observed frame, reverse-geocoded using OSM data to give the name of the road for each point.  The summary statistics for each road segment were included as additional columns in the CSV.  The footage for the training area was reviewed to add a ``ground truth'' column, indicating whether a paved shoulder existed for the road segment or not.  A manual search was conducted to find thresholds for the summary statistics that generally gave a correct classification for each road segment in the training area.  The model was then applied with these thresholds to the test area of Mount Eliza.
+
+\subsection{Results for the test area}
+
+The map of paved shoulders that was generated for the test area of Mount Eliza from the dash camera footage can be found in figure \ref{fig:rq4}.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.45\textwidth]{map3_1.png}
 \caption{Detected paved shoulders in Mount Eliza based on dash camera images}
-\label{fig:rq3}
+\label{fig:rq4}
 \end{figure}
 
-xxx
+The map gives relatively solid results on Humphries Road and the Nepean Highway, where there is a bicycle lane, a special case of a paved shoulder.  Part of the Nepean Highway was not detected, where the lane markings have faded and the ``noise'' from the foliage dragged the average lines for the camera vehicle too far to the left.
+
+The other lines drawn on the map represent true paved shoulders, but they were easily interrupted by ``noise'' from the side of the road, or parked cars.  Many of the interruptions in the paved shoulder route on Old Mornington Road, to the west of the the Nepean Highway, were largely attributable to parked cars.
+
+The model did not present any false positives, and it appeared to find most roads with paved shoulders, but the routes drawn were often broken up.
 
 
 
@@ -933,16 +1053,80 @@ xxx
 \section{Limitations}
 \label{results:discussion}
 
+\subsection{Use of Google Street View images}
+
+The use of Google Street View images to map bicycle lane routes in Mount Eliza was effective, and added value, finding routes that had not already been recorded in either the official ``Principal Bicycle Network'' dataset or the crowdsourced OpenStreetMap database.
+
+\remark{COMMENT ON HEIDELBERG}
+
+The main limitations of the Google Street View approach are the cost of images and gaps in coverage they can provide.
+
+The Google Street View API appears to be able to provide a distinct snapshot every 10 metres.  A town or suburb can easily have many kilometres of roads, and if every snapshot in a town were sampled, or multiple towns were surveyed, the amount payable to Google for the use of their API could add up quickly.  The proposed solution attempted to mitigate this by only sampling the area immediately around intersections, and making assumptions that a bicycle lane route is continuous if only interrupted by missed detections at one or two intersections in a row.  If API costs needed to be reduced further, then perhaps OpenStreetMap tags could be used to eliminate roads that are more for ``local traffic only'', where bicycle lanes might not be as necessary.  Or, the survey could focus on roads that are adjacent to known bicycle lane routes, and might therefore be a continuation waiting to be discovered.
+
+One significant challenge is the recency of the available Google Street View images.  For example, the latest available Google Street View images for the Mount Eliza survey area are dated October 2019.  If any new bicycle lanes had been constructed in the past two years, the model would be unable to detect them.  The Google Street View approach can only bring a dataset of bicycle lane routes up to date as far as Google's last visit to the area.
+
+The Google Street View camera vehicle typically only provides a view from one lane, on one side of the road.  Bicycle lane markings on the other side of the road may be difficult to spot, especially for a divided road with foliage or other barriers dividing the traffic.  This is especially important if you want the bicycle lane route map to distinguish which side of the road a bicycle lane is on, if not both.  It may be very difficult or impossible to detect a bicycle lane in a service road running in the opposite direction to the lane from which the Google Street View snapshot was taken.  Hopefully these challenges are sometimes mitigated by taking samples near intersections from multiple approaches, where some of the bicycle lane markings might be clear.
+
+The model was able to detect bicycle lane markings even when they were moderately far into the distance, and despite the 640x640 resolution limit.  Sometimes, the bicycle lane marking was ``smeared'' by artefacts in the Google Street View image, but with enough training examples it was able to detect these correctly.
+
+The survey area of Mount Eliza is in an outer metropolitan area, and the COVID-19 lockdown restrictions have triggered political debate about whether it should be considered ``metropolitan'' at all.  Most residential roads in the area do not have pedestrian footpaths.  If the model is applied to denser urban areas, it is likely to need more images in the ``training'' and ``test'' datasets to cover the additional distractions that might appear on the side of the road.  More labels might be required, as per the dash camera model used to address research question 3, and more aggressive detection masks might be required.  With more traffic, it might be much more difficult to detect a bicycle lane marking on the other side of a road or intersection, and there might therefore be a much higher reliance on detecting markings immediately in front of and to the left of the camera vehicle, where it is less likely that another vehicle could be blocking the view.
+
+\remark{WHAT WAS OBSERVED IN HEIDELBERG?}
+
+Difficulties in heavily built-up areas might matter less if the bicycle lane routes in those areas have already been well-mapped due to their priority and a large number of interested cyclists who might contribute data to OpenStreetMap.
 
 
-Discussion of limitations of the work
+\subsection{Use of dash camera images}
+
+The use of dash cameras to gather images would overcome many of the limitations of the Google Street View data.  If the latest available images are too old, then there is freedom to go and collect more at any time.  Images can be gathered from both sides of the road, from any lane or service road required.  The driver can drive conservatively, to limit the degree to which the view is obstructed by the vehicle in front.  Many more snapshots are available:  If the camera vehicle is driving at 50 kmph, that equates to less than 14 metres per second.  A camera recording at 60 frames per second would record a frame every 23cm, compared to the 10 metre intervals provided between snapshots by Google Street View.  The limiting factor becomes how much data is meaningful to store and review, and missed detections may be compensated for in nearby frames or repeat surveys.
+
+The results obtained from the dash camera survey were at least the equal of the Google Street View survey of a smaller sample area.  There is reason to believe that the dash camera approach has the potential to be more robust and able to deal with the technical challenges that limit the Google Street View approach.
+
+The challenge with the dash camera approach is with logistics.  With Google Street View, you can survey as wide an area as you can afford to download.  With the dash camera approach, someone must install and maintain a dash camera, drive the required routes, and send the data off for processing.  This could be done by interested volunteers for individual areas, or by individual local governments who are aware that they have significant deficiencies in their data.  Perhaps the most promising prospect would be to ``incidentally'' gather footage from local government vehicles that regularly drive most routes for another purpose.  For example, garbage trucks would cover all residential streets on a regular basis.  The business case for collecting, managing, and processing the footage could be justified not only by the value of mapping bicycle lane routes, but by the value of any other information that could be gathered visually and correlated to a location.  For example, a local council might be interested in knowing whether the garbage truck \textit{really} missed someone's bin, or whether the truck is being sent back because the resident actually forgot to put their bin out.  Or they may be interested in monitoring local roads for defects that need to be repaird.
+
+To scale the dash camera approach across multiple cameras, or to reproduce the research, it should be noted that the optical characteristics, resolution, and frame rate of each camera may differ, and placement of the camera in different positions, angles, and vehicles may materially affect the perspective of the images.  These factors might result in the need to gather additional training and test images to ensure that the solution generalises well across cameras.  Any model that depends on a model to correct for lens distortion should go through its own calibration process, as per section \ref{s:rq4a}.
+
+The method that was used to quickly ``bootstrap'' a set of set of dash camera images for training and validation based on the Google Street View-trained model worked well in this instance.  But the process of randomly splitting those images into ``training'' and ``test'' datasets would not have ensured the absolute independence of the ``test'' images.  None of the ``test'' images were included in the ``training'' dataset, however some of the ``training'' images may have been very similar due to them being taken from a nearby location.  If the model had failed to generalise well despite good performance in its evaluation, this may have needed more attention.
+
+
+\subsection{Detection of paved shoulders}
+
+The model that was applied to the problem of detecting paved shoulders had significant limitations, and it was intended as a ``proof of concept'' to show that the general technique used to map bicycle lanes from the bicycle lane markings could be applied to other problems where information can be collected visually.
+
+The model relied on explicit programming of an algorithm, and manually selected thresholds applied to summary statistics, based on observations in a training area.  It did not attempt to apply any of the more recent advances in machine learning or deep learning, where the model ``learns'' to solve the problem for itself from the data.  It was successful at creating an approximate map, without false positives, but the routes that were calculated were easily interrupted by a sufficient volume of parked cars or roadside ``noise''.
+
+These results were achieved by using training data from a suburb that was adjacent to the survey area, and they most likely shared many characteristics.  It might be difficult or impossible to tune the model to work well across a wider variety of settings.
+
+A more robust solution might be provided by applying deep learning techniques to identify the road surface, with a training dataset that is diverse enough to cover all conditions that may be encountered in the survey area.  If the model is also able to identify vehicles and their bounding boxes in each image, then it might be better able to deal with parked vehicles, both in assessing whether a paved shoulder is there, and assessing its usefulness in light of the obstructions.
+
+
+\subsection{Survey area constraints}
+
+COVID-19 lockdown restrictions imposed significant constraints on the location and variety of survey areas.  Access to dash camera footage was especially limited, while for the Google Street View approach, it constrained the areas in which an absolute ``ground truth'' could be established via an in-person survey.  Further work would be required, once lockdown restrictions are eased, to show how well the dash camera solutions work in a greater variety of environments.
+
+During this research, surveys were generally conducted at a scale of one town or suburb at a time.  OpenStreetMap data for an area was generally parsed and then cached in memory in Python ``dict'' objects for quick access.  It seems reasonable to partition this work by town or Local Government area, and the methods used worked well at that scale.  Some operations might not scale well if it were applied to a whole State or Country at a time.  For example, for every point sampled in dash camera footage, we find the closest ``way'' and then the closest ``node'' in OpenStreetMap, so that the data is aligned to the OpenStreetMap version of the shape of each road.  This allows us to identify and measure any differences in routes.  If the process was applied at a State level instead of a Suburb level, the search for the closest point in OpenStreetMap might take significantly longer.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{Opportunities for future research}
 \label{s:future_work}
 
+Future work could examine how well the solutions proposed generalise to other survey areas.
 
+If the cost of using the Google Street View API is a concern, then other strategies to reduce API consumption could be investigated.  For example, the current solution takes four images at each location.  How much impact does it have if we only have the front and rear views?  If we approach an intersection from multiple angles, and the angles are not perfectly square, that might result in unnecessary requests for images with headings that are only a few degrees different from ones we already have.  How much can we save by restricting this?  Can we make assumptions about which classes of road we should survey, based on their tags or other information in the OpenStreetMap database?  For example, a ``tertiary'' road might be a good candidate for a bicycle lane, but a minor road designed for local traffic only might not be.  How frequently are bicycle lanes tagged in the OpenStreetMap database for each class of road?  Would it be useful to limit our search to roads that are adjacent to known bicycle routes, where they might provide a useful but unrecorded continuation?
+
+This research focussed surveying one aspect of the road infrastructure that is known to influence bicycle safety and uptake:  The presence of a bicycle lane.  There are many other factors that could surveyed visually.  With a more robust way to detect the edge of the road and the each lane, we could not only survey the paved shoulders but also measure the width of lanes.  We could use another deep learning model to detect vehicles that are obstructing the bicycle lane, or rows of parked cars that present a hazard due to the chance that a door will suddenly open into the bicycle lane, or the car might suddenly pull out.  We could correlate the data to topographical maps or GPS altitude readings to identify road segments with a significant uphill or downhill slope.  We could look for road surface defects or debris in the bicycle lane that might suggest that maintenance is required.
+
+The solution that was implemented has contributed some general approaches that could be reused for other applications beyond the domain of bicycle safety.  It provided:
+
+\begin{itemize}
+\item{A method to sample Google Street View images for a list of locations, and review them for possible inclusion in a labelled dataset for the purposes or training or testing a deep learning model}
+\item{A method to sample Google Street View images for roads or intersections in a survey area}
+\item{A method to infer routes on a map from points where a model has detected something of interest}
+\item{A method to align a route from dash cam footage and its GPS metadata to the closest route in OpenStreetMap to make comparisons}
+\end{itemize}
+
+Any application where there is potential value in recognising something visually, counting incidences, and drawing them on a map, could re-use some of the techniques used in this research project.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -953,9 +1137,15 @@ Discussion of limitations of the work
 
 \remark{Criteria 15: conclusions relate to the original research questions/aims/hypotheses}
 
+It was found that it is possible to train a ``deep learning'' machine learning model to identify on-road bicycle lanes in street scene images sourced from Google Street View.  A modest dataset of 256 bicycle lane markings was sampled at random from intersections on known bicycle lane routes in the State of Victoria, Australia.  A pre-trained model from the TensorFlow Object Zoo was able to recognise all bicycle lane markings in a ``test'' dataset, with only 2,000 training steps of transfer learning.  This satisfied research question 1.
 
+It was found that the model could then be used to detect and map bicycle lane routes across all streets in a sample area with Google Street View coverage.  In a survey area in Mount Eliza, Victoria, the model was able to detect all bicycle lanes, including some that had not been recorded in either the official government ``Principal Bicycle Network'' dataset or the crowdsourced OpenStreetMap database.  This satisfied research question 2.
 
+\remark{HEIDELBERG?}
 
+It was found that a similar process could be applied, to map bicycle lane routes in a survey area based on footage and metadata collected from a dash camera.  Again, this model detected all bicycle lanes in the survey area, with no false positives, and identified bicycle lane routes not recorded in other sources.  This satisfied research question 3.
+
+Finally, it was found that the approach that was used to map bicycle lane routes from dash camera footage could be re-used to visually survey other details about the road infrastructure.  As a demonstration, a basic Canny/Hough model was created and tuned in an attempt to detect paved shoulders on the side of the road, suitable for a cyclist to use to maintain some separation from other traffic.  The model was able to create and draw a map, though there were some issues with gaps in the routes drawn, due to interference from parked cars and other roadside ``noise''.  With future research, it would be possible to plug in a deep learning model to improve performance, or plug in a different model to detect something else, for another application.  This satisfied research question 4.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

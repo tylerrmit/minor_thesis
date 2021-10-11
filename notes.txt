@@ -82,3 +82,56 @@ python E:\Release\minor_thesis\contrib\model_main_tf2_mod.py --model_dir=E:\Rele
 ---
 Freeze command:
 python E:\Release\TensorFlow\models\research\object_detection\exporter_main_v2.py --input_type=image_tensor -pipeline_config_path=E:\Release\TensorFlow\workspace\models\faster_rcnn_resnet50_v1_640x640_coco17_tpu-8\pipeline.config --trained_checkpoint_dir=E:\Release\TensorFlow\workspace\models\faster_rcnn_resnet50_v1_640x640_coco17_tpu-8 --output_directory=E:\Release\TensorFlow\workspace\models\faster_rcnn_V2_12000
+
+
+
+Mount Eliza Sample
+
++/- 20m: 1113
++/- 10m: 705
++/- 00m: 297
+
+Mount Eliza
+
++/- 20m: 7049
++/- 10m: 4511
++/- 00m: 1973
+
+
+-37.750015, 145.052946
+-37.765235, 145.077194
+
+
+Heidelberg:
++/- 20m: 4314
++/- 10m: 2780
++/- 00m: 1246
+
+
+
+
+GSV Heidelberg Sample:
+
+hit     : Total distance   30875.44m
+tag     : Total distance    5316.93m
+both    : Total distance    4628.09m
+either  : Total distance   31564.28m
+hit_only: Total distance   26015.80m
+tag_only: Total distance     506.57m
+
+GSV Mount Eliza Sample:
+
+hit     : Total distance   11817.05m
+tag     : Total distance    2344.05m
+both    : Total distance    2344.05m
+either  : Total distance   11817.05m
+hit_only: Total distance    9387.53m
+tag_only: Total distance       0.00m
+
+
+Dashcam Mount Eliza:
+
+
+<running now>
+
+
