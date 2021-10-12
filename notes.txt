@@ -119,6 +119,15 @@ either  : Total distance   31564.28m
 hit_only: Total distance   26015.80m
 tag_only: Total distance     506.57m
 
+Improved:
+
+hit     : Total distance    4263.94m
+tag     : Total distance    5316.93m
+both    : Total distance    3013.04m
+either  : Total distance    6567.83m
+hit_only: Total distance    1139.63m
+tag_only: Total distance    1917.41m
+
 GSV Mount Eliza Sample:
 
 hit     : Total distance   11817.05m
@@ -132,6 +141,23 @@ tag_only: Total distance       0.00m
 Dashcam Mount Eliza:
 
 
-<running now>
+Was:
 
+hit     : Total distance   11386.61m
+tag     : Total distance    8902.82m
+both    : Total distance    6749.83m
+either  : Total distance   13539.59m
+hit_only: Total distance    4588.17m
+tag_only: Total distance    1807.21m
+
+Now:
+
+hit     : Total distance   13413.24m
+tag     : Total distance    8902.82m
+both    : Total distance    7483.63m
+either  : Total distance   14832.43m
+hit_only: Total distance    5795.54m
+tag_only: Total distance     966.63m
+
+Changing the model from CenterNet to RCNN improved overlap, yay.
 
