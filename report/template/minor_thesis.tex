@@ -337,6 +337,8 @@ A continuous road may be divided up into multiple ``way'' segments in the OpenSt
 
 Each inferred route was drawn as a line in a geojson file, which can be drawn on a map or measured as per section \ref{s:rq2d} below.
 
+This approach was intended to draw a map of bicycle lane routes irrespective of which side of the road the bicycle lane is on.  If additional information is required about roads where bicycle lanes are only present on one side of the road, the process would need to be refined to take into account the heading of the road, the heading of the camera angle, and exactly where in the frame the bicycle lane marking was detected.
+
 
 \subsection{Comparing results to other data sources}
 \label{s:rq2d}
@@ -344,6 +346,13 @@ Each inferred route was drawn as a line in a geojson file, which can be drawn on
 Once a geojson file has been produced to describe the detected bicycle lane routes, it can be drawn on a map in a Jupyter Notebook using the Python ``ipyleaflet'' library.  See appendix \\ref{a11}.
 
 The OpenStreetMap XML extract for the survey area can be filtered down to ``ways'' that are roads with the ``cycleway'' tag, and then converted into an equivalent geojson file.  The detected routes and the routes that are tagged in OpenStreetMap can be viewed side-by-side on a map.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.6]{example_comparison_map.png}
+\caption{Example map comparing detected bicycle lane routes to OpenStreetMap.  Green lines represent routes that are found in both maps.  Blue lines represent detected routes that are not recorded in OpenStreetMap.  Red lines would represent routes that are recorded in OpenStreetMap but not detected, however there are no such routes in this example.}
+\label{fig:004}
+\end{figure}
 
 To allow more detailed comparisons, the geojson files were drawn simulaneously, in a single process.  For each road where a bicycle lane marking was detected, a process ``walks'' down ``nodes'' in order.  If the nodes are part of a ``way'' that has been tagged as a ``cycleway'', their coordinates are added to a line in the ``OpenStreetMap'' geojson.  If a detection point is encountered at two intersections in a row, then the intersection nodes and the nodes in between them are added to a line in the ``detected routes'' geojson.  At the same time, additional geojson files are drawn to show the route sections where both sources agree that there is a bicycle lane, and route sections where one source registers a bicycle lane and the other does not.
 
@@ -692,10 +701,11 @@ In this exercise, lane detection was attempted from the dash camera footage only
 \section{RQ1: Training a model to identify bicycle lanes in Google Street View images}
 \label{results:rq1}
 
+Initial performance targets of 80\% recall and 80\% precision were chosen for this research question, to provide a solid baseline before attempting to infer and map routes from the detection points as part of the subsequent phase of the research.  To infer routes from detection points with the method proposed in section \ref{s:rq2}, we need to be confident that bicycle lane markings will be detected at most intersections, if present, otherwise the missed detections would cause an incorrect discontinuity in the inferred route.  A recall of  80\% would mean that we can expect to detect the markings most of the time.  We also want to limit false positives, because two adjacent false positives could cause us to infer a route where there is none.  A precision of 80\% would mean that only a small minority of our detections are false positives, and we would be very unlucky to infer a long route spanning multiple intersections that is not real.
 
-An initial dataset of 256 Google Street View images was gathered, with the option to gather more, if necessary to achieve acceptable performance for the first two research questions.  They were labelled and split into 205 ``training''  images and 51 ``test'' images, according to an 80:20 split.  Five pre-trained object detection models from the TensorFlow 2 Model Garden were trained and evaluated using these ``training'' and ``test'' datasets, through a process of transfer learning.
+An initial dataset of 256 Google Street View images was gathered, with the option to gather more, if necessary to achieve acceptable performance for the first two research questions.  They were labelled and split into 205 ``training''  images and 51 ``test'' images, according to an 80:20 split.  One of the ``test'' images did not contain any bicycle lane markings.  It was initially included in the dataset in error, however it was retained because it proved useful for quick sanity checks, to ensure the model was not blindly flagging bicycle lane markings in every image.
 
-Each candidate model was trained for 2,000 steps at a time, with training paused every 2,000 steps to evaluate performance against the ``test'' dataset.  Training continued until it yielded no significant improvement to the mean Average Precision of bounding box detection when evaluated against the ``test'' dataset.  
+Five pre-trained object detection models from the TensorFlow 2 Model Garden were trained and evaluated using these ``training'' and ``test'' datasets, through a process of transfer learning.  Each candidate model was trained for 2,000 steps at a time, with training paused every 2,000 steps to evaluate performance against the ``test'' dataset.  Training continued until it yielded no significant improvement to the mean Average Precision of bounding box detection when evaluated against the ``test'' dataset.  
 
 Table \ref{table1} lists the five pre-trained object detection models that were tested, and the mean Average Precision of their bounding box detection when evaluated on the ``test'' dataset after 2,000 training steps.  The ``EfficientDet D1 640x640'' and ``SSD ResNet101 V1 FPN 640x640'' were unable to detect any bicycle lane markings even after 4,000 training steps, so training on them was ceased, to focus on the other three models that were producing more immediate results.
 
@@ -741,22 +751,23 @@ Figure \ref{fig:rq1b} shows the Bounding Box mean Average Precision during evalu
 \centering
 \begin{tabular}{|l|r|r|r|r|r|}
 \hline
-\multicolumn{1}{|c|}{\bfseries Pre-Trained Model} & \textbf{Train false -ve} & \textbf{Test false -ve}\\
+\multicolumn{1}{|c|}{\bfseries Pre-Trained Model} & \multicolumn{2}{|c|}{\bfseries Train} & \multicolumn{2}{|c|}{\bfseries Test} \\
+& \textbf{False Pos$^n$} & \textbf{False -ve} & \textbf{False Pos$^n$} & \textbf{False -ve} \\
 \hline
-CenterNet HourGlass104 512x512 & 11 & 13 \\
-Faster R-CNN ResNet50 V1 640x640 & 0 & 0 \\
-SSD MobileNet V1 FPN 640x640 & 30 & 9 \\
+CenterNet HourGlass104 512x512 & 0 & 11 & 0 & 13 \\
+Faster R-CNN ResNet50 V1 640x640 & 1 & 0 & 4 & 0 \\
+SSD MobileNet V1 FPN 640x640 & 8 & 30 & 4 & 9 \\
 \hline
 \end{tabular}
-\caption{Errors in the detection of bicycle lane markings in the ``train'' and ``test'' datasets after 2,000 training steps}
+\caption{Errors in the detection of bicycle lane markings in the ``train'' and ``test'' datasets after 2,000 training steps.  (The number of frames with a bounding box drawn in a false position, and the number of frames where the model came to a false negative conclusion.)}
 \label{table2}
 \end{table}
 
-The ``Faster R-CNN ResNet50 V1 640x640'' model was able to successfully locate a bicycle lane marking in \textit{every single image in ``training'' and ``test'' datasets where one appeared}.  It was not fooled by a solitary image with \textit{no bicycle lane markings} that had been included in the ``training'' dataset.
+The ``Faster R-CNN ResNet50 V1 640x640'' model was able to successfully locate a bicycle lane marking in \textit{every single image in ``training'' and ``test'' datasets where one appeared}.  It was not fooled by a solitary image with \textit{no bicycle lane markings} that had been included in the ``training'' dataset.  It produced a bounding box in the wrong position for four images in the test dataset.  It easily met the target performance metrics, with 100\% recall and 92\% precision.
 
 The ``Faster R-CNN ResNet50 V1 640x640'' model, trained to 2,000 training steps, was chosen as the preferred model, and used to create a bicycle lane route maps for research question 2.
 
-The initial dataset of 256 images appeared to be sufficient to get reliable detection results with this model, so no further images were collected from Google Street View for the ``training'' and ``test'' datasets at this stage.
+The initial dataset of 256 images appeared to be sufficient to get reliable detection results with this model, so no further images were collected from Google Street View for the ``training'' and ``test'' datasets at this stage.  If better performance was required to obtain sensible results when drawing maps of bicycle routes in the next section, we would address that by increasing the number of training images available, add labels to common sources of false positive results, then re-assess the candidate models after further training.
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -884,6 +895,7 @@ OpenStreetMap only & 1,917m \\
 \label{table_metres_rq2_h}
 \end{table}
 
+The model was only able to identify 57\% of the bicycle lane routes recorded in OpenStreetMap, by distance, and 27\% of the routes it identified were false positives.  The model was not able to achieve the desired level of performance in this more heavily built-up suburb.  To address  these issues, more training and validation data from this type of environment would be required, and perhaps using dash camera footage would also help by providing a greater number of images where bicycle lane markings can potentially be detected.
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ3: Building a map of bicycle lane routes from dash camera footage captured in a survey area}
@@ -1132,13 +1144,14 @@ Any application where there is potential value in recognising something visually
 \chapter{Conclusion}
 \label{conclusion}
 
-It was found that it is possible to train a ``deep learning'' machine learning model to identify on-road bicycle lanes in street scene images sourced from Google Street View.  A modest dataset of 256 bicycle lane markings was sampled at random from intersections on known bicycle lane routes in the State of Victoria, Australia.  A pre-trained model from the TensorFlow Object Zoo was able to recognise all bicycle lane markings in a ``test'' dataset, with only 2,000 training steps of transfer learning.  This satisfied research question 1.
+A ``deep learning'' model was successfully trained to detect bicycle lane markings based on a dataset of 256 Google Street View images that were randomly sampled from intersections along known bicycle lane routes across the State of Victoria, Australia.  The model was based on the ``Faster R-CNN ResNet50 V1 640x640'' model that is published in the TensorFlow 2 Model Garden, pre-trained on the COCO 17 dataset.  It achieved 100\% recall and 92\% precision when evaluated against 51 test images that had been withheld during its training.  This easily satisfied the performance targets proposed in research question 2.
 
-It was found that the model could then be used to detect and map bicycle lane routes across all streets in a sample area with Google Street View coverage.  In a survey area in Mount Eliza, Victoria, the model was able to detect all bicycle lanes, including some that had not been recorded in either the official government ``Principal Bicycle Network'' dataset or the crowdsourced OpenStreetMap database.  This satisfied research question 2.
+The model was applied to Google Street View images across a survey area in the outer metropolitan suburb of Mount Eliza, Victoria, Australia.  A process was created to correlate the detection points to OpenStreetMap data about the road network to infer and map bicycle routes.  All bicycle routes in the area were successfully detected, including routes not previously identified in OpenStreetMap or the ``Principal Bicycle Network'' dataset, satisfying the aims of research question 2.  There were no false positive routes.  When the same process was re-applied to the heavily built-up suburb of Heidelberg, the results were not as strong:  Not all known bicycle routes were detected, and some of the inferred routes were not real.  Additional training data would be required to improve performance, and future research should examine whether better results could be obtained using dash camera footage.
 
-It was found that a similar process could be applied, to map bicycle lane routes in a survey area based on footage and metadata collected from a dash camera.  Again, this model detected all bicycle lanes in the survey area, with no false positives, and identified bicycle lane routes not recorded in other sources.  This satisfied research question 3.
+The initial model that was trained on Google Street View images generalised well enough to detect many bicycle lane markings in dash camera footage collected in a training area.  This was used to gather images from the dash camera to be labelled and included in the training and test datasets, to further improve the performance of the model when processing dash camera footage.  The final model was also able to correctly identify all bicycle lane routes in the survey area, from dash camera footage, including routes not previously recorded, with no false positive routes.  It therefore satisfied the aims of research question 3, and shows promise when working in outer metropolitan areas where bicycle lane routes are not already well mapped.  It was not possible to test the model in more heavily built-up areas due to movement restrictions in place as part of the government response to COVID-19.
 
 Finally, it was found that the approach that was used to map bicycle lane routes from dash camera footage could be re-used to visually survey other details about the road infrastructure.  As a demonstration, a basic Canny/Hough model was created and tuned in an attempt to detect paved shoulders on the side of the road, suitable for a cyclist to use to maintain some separation from other traffic.  The model was able to create and draw a map, though there were some issues with gaps in the routes drawn, due to interference from parked cars and other roadside ``noise''.  With future research, it would be possible to plug in a deep learning model to improve performance, or plug in a different model to detect something else, for another application.  This satisfied research question 4.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
