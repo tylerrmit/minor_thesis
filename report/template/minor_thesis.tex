@@ -114,25 +114,29 @@ On-road bicycle lanes improve safety for cyclists, and encourage participation i
 
 The benefits of ``active transport'', such as walking and cycling, have been well documented in previous studies.  Participants' health may improve due to their increased physical activity.  There are environmental benefits due to reduced emissions and pollution.  And there are economic benefits, including a reduced burden on the health system, and reduced transportation costs for participants \cite{LEE2012219} \cite{RABL2012121}.
 
-Federal and State government policy makers in Australia therefore wish to encourage cycling \cite{federal_policy_2019} \cite{state_policy_2020}.  However, the share of cycling for trips to work in Melbourne is only 1.5\% \cite{melbactive}.  For many commuters, a perceived lack of safety of cycling is a major barrier to adoption.  Other significant factors are the availability of shared bicycle schemes and storage facilities, and the risk of theft \cite{WILSON2018234}.  Cycling infrastructure has a significant impact on real and perceived cyclist safety, and this research project will focus on that issue.  Important safety factors include the presence and width of a bicycle lane, the presence of on-street parking, downhill and uphill grades, and the quality of the road surface \cite{BIKESAFETY} \cite{Teschke2012}.  A comprehensive dataset of cycling infrastructure would help policy makers identify and prioritize areas in need of improvement to safety.
+Federal and State government policy makers in Australia therefore wish to encourage cycling \cite{federal_policy_2019} \cite{state_policy_2020}.  However, the share of cycling for trips to work in Melbourne is only 1.5\% \cite{melbactive}.  For many commuters, a perceived lack of safety of cycling is a major barrier to adoption.  Other significant factors are the availability of shared bicycle schemes and storage facilities, and the risk of theft \cite{WILSON2018234}.  Cycling infrastructure has a significant impact on real and perceived cyclist safety, and this research project will focus on that issue.  Important safety factors include the presence and width of a bicycle lane, the presence of on-street parking, downhill and uphill grades, and the quality of the road surface \cite{BIKESAFETY} \cite{Teschke2012}.  A comprehensive dataset of cycling infrastructure would help policy makers  prioritize areas in need of improvement to safety.
 
-In Victoria, Australia, the State government publishes a ``Principal Bicycle Network'' dataset to assist with planning \cite{PrincipalBicycleNetwork}, however, during an exploration of the dataset, it was found that the dataset appears to be significantly out of date.   (See section \ref{s:datasets}.)  Individual Local Government Areas may produce their own maps of bicycle routes, but availability is inconsistent \cite{vicroads_maps}.
+In Victoria, Australia, the State government publishes a ``Principal Bicycle Network'' dataset to assist with planning \cite{PrincipalBicycleNetwork}, however, during an exploration of the dataset, it was found to be significantly out of date.   (See section \ref{s:datasets}.)  Individual Local Government Areas may produce their own maps of bicycle routes, but availability is inconsistent \cite{vicroads_maps}.
 
-The aim of this research project was to investigate whether it is possible to construct a dataset or map of bicycle lanes in a local area, by collecting street scene images at known coordinates, and then using a ``deep learning'' machine learning model to detect locations where bicycle lane markings are found.  Detection locations were matched to an existing dataset of roads in the area, to infer bicycle lane routes along stretches of road where markings were consistently found.  If a baseline map of bicycle lane routes can be built this way, then the process could be extended in future to gather information about other significant factors, such as how frequently the bicycle lane is obstructed by parked vehicles, or the presence of debris or damage to the road surface.
+The aim of this research project was to construct a dataset or map of bicycle lanes in a local area, by collecting street scene images at known coordinates, and then using a ``deep learning'' model to detect locations where bicycle lane markings are found.  Detection locations were matched to an existing dataset of roads in the area, to infer bicycle lane routes along stretches of road where markings were consistently found.  If a baseline map of bicycle lane routes can be built this way, then the process could be extended in future to gather information about other significant factors, such as how frequently the bicycle lane is obstructed by parked vehicles, or the presence of debris or damage to the road surface.
 
 Google Street View has been chosen as a source of street scene image data due to its wide geographical coverage, and the accessibility of the data via a public API.  However, a significant limiting factor is that the Google Street View images for any given location might be several years out of date.  Therefore, the use of images collected from a ``dash cam'' was also explored.  A local government that is responsible for building and maintaining bicycle lanes could use dash cameras to gather its own images, at regular intervals, for more up-to-date data.
 
 \section{Research questions}
 \begin{itemize}
-\item{RQ1: Can a ``deep learning'' machine learning model be used to identify on-road bicycle lanes in street scene images sourced from Google Street View?}
-\item{RQ2: Can the model then be used to detect and map bicycle lane routes across all streets in a survey area with Google Street View coverage?}
-\item{RQ3: Can a similar process be applied to map bicycle lane routes from street scene images collected from dash camera video footage in a survey area?}
+\item{RQ1: Can a ``deep learning'' model be used to identify bicycle lane markings in street scene images sourced from Google Street View, in at least 80\% of images where those markings appear, with a precision of at least 80\%?}
+\item{RQ2: Can the model then be used to correctly detect and map all bicycle lane routes across all streets in a survey area with Google Street View coverage?}
+\item{RQ3: Can a similar process be applied to correctly detect and map bicycle lane routes from street scene images collected from dash camera video footage in a survey area?}
 \item{RQ4: Can the approach used to map bicycle lane routes from dash camera video footage be re-used to visually survey other details about the infrastructure?}
 \end{itemize}
 
+Models from the TensorFlow 2 Model Garden were first trained to detect bicycle lane markings in a custom dataset of Google Street View images.  These initial models generalised well enough to detect bicycle lane markings in dash camera footage, so they were used to gather additional images from the dash camera to include in the dataset for further training and validation.
+
+The remainder of this thesis is laid out as follows:  Chapter \ref{s:literature} is a literature review, providing motivations for the research, and a background in relevant techniques;  Chapter \ref{s:methods} describes the approach that was taken;  Chapter \ref{s:results} reports the results and discusses the limitations and findings;  Chapter \ref{conclusion} discusses the overall conclusions of the research.  Please see Appendix \ref{a:process} for instructions on how to access and use the code and data assets produced as part of this research project.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Literature Review}
+\label{s:literature}
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -203,6 +207,7 @@ The Victorian State Government in Australia started publishing an official ``Pri
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Methods}
+\label{s:methods}
 
 
 This section describes the methodology that was used to address each of the research questions.  To assist with reproducibility, all code has been published on GitHub and FigShare, and the dash camera footage and data has been published on FigShare.  For detailed instructions on how to access the code and data, and how to run the code via the provided Jupyter Notebooks, please refer to appendix \ref{a:process}.
@@ -232,7 +237,7 @@ The official Australian design standards for bicycle lanes specify that bicycle 
 \subsubsection{Identifying candidate intersections to sample}
 \label{s:sample_candidates}
 
-Two possible sources of information about ``known'' bicycle lane routes were considered for use in the sampling process:  The ``Principal Bicycle Dataset'', and XML extracts from the OpenStreetMap database.  These datasets are discussed in section \ref{s:datasets}, with further details of the structure of the OpenStreetMap data provided in Appendix \ref{a:osm_concepts}.  The ``Principal Bicycle Network'' dataset was chosen, as the incumbent official dataset for local policy makers.  It was also less likely to suggest bicycle routes not yet captured in the Google Street View images, due to the age of the data.  On the other hand, using OpenStreetMap as a source of ``known'' bicycle lane routes generalises to other jurisdictions.  Tools were created to support both approaches.  Please see appendix \ref{aj01} to \ref{aj03} for further information on how to create lists of intersection points to sample from using the provided tools.
+Two possible sources of information about ``known'' bicycle lane routes were considered for use in the sampling process:  The ``Principal Bicycle Dataset'', and XML extracts from the OpenStreetMap database.  These datasets are discussed in section \ref{s:datasets}, with further details of the structure of the OpenStreetMap data provided in Appendix \ref{a:osm_concepts}.  The ``Principal Bicycle Network'' dataset was chosen, as the incumbent official dataset for local policy makers.  It was also less likely to suggest bicycle routes not yet captured in the Google Street View images, due to the age of the data.  On the other hand, using OpenStreetMap as a source of ``known'' bicycle lane routes generalises to other jurisdictions.  Tools were created to support both approaches, and their operation is described in appendix \ref{aj01} to \ref{aj03}.  Given a list of ``known'' bicycle lane routes from either of these sources, each route can be looked up in an OpenStreetMap database to identify its intersections.
 
 OpenStreetMap data can be downloaded for an individual country via the ``GeoFabrik'' website \cite{geofabrik} and then sliced into a smaller area, if necessary, using the ``osmium'' command line tool \cite{osmium}.  For more background on concepts in the OpenStreetMap data, please refer to Appendix \ref{a:osm_concepts}.  Briefly, an OpenStreetMap XML extract file contains ``ways'', which represent lines on a map, such as road segments, and ``nodes'', which represent strings of coordinates that make up the ``ways'' and thereby describe the shape of each line on a map.  A list of candidate intersections along ``known'' bicycle lane routes can be extracted from OpenStreetMap XML data, by looking for ``nodes'' that are common to two or more ``ways'' that are roads and have distinct names.
 
@@ -260,7 +265,7 @@ The GUI allowed multiple candidate intersections to be assessed per minute.  An 
 \subsubsection{Labelling the dataset}
 \label{s:label}
 
-Once a suitable number of Google Street View images containing bicycle lane markings had been collected, they were copied to a single folder and then labelled using the open-source tool ``labelImg'' \cite{labelImg}.  Please refer to appendix \ref{aj05} for more information on how to perform the labelling process.  The output of the process was one XML file per image, in a format that could be understood by TensorFlow 2 training tools and scripts.
+Once a suitable number of Google Street View images containing bicycle lane markings had been collected, they were copied to a single folder and then labelled using the open-source tool ``labelImg'' \cite{labelImg}.  Please refer to appendix \ref{aj05} for more information on how to perform the labelling process.  The ``labelImg'' tool allows the operator to examine each image in a folder, draw bounding boxes around objects of interest in each image, and assign a label to each bounding box to categorise its contents.  The output of the process was one XML file per image, in a format that could be understood by TensorFlow 2 training tools and scripts.
 
 \subsection{Training and evaluating candidate models from the TensorFlow 2 Model Garden}
 
@@ -1140,110 +1145,6 @@ Finally, it was found that the approach that was used to map bicycle lane routes
 \appendix
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{OpenStreetMap XML Concepts}
-\label{a:osm_concepts}
-
-The use of OpenStreetMap XML extract data is fundamental to the solutions proposed in this research project.  In this appendix, we briefly describe some key concepts in the data, and provide example XML data to demonstrate them.
-
-\section{Ways}
-\label{osm:ways}
-
-A ``way'' in the OpenStreetMap XML data is a line that can be drawn on a map.  Typically, it will represent a road segment, as per the example in figure \ref{xml:way_st}.  However, it could also be the path of a natural feature such as a creek or coastline.  It could be an off-street walking track or bicycle trail.  Or it could be the boundary of a reserve or an estate.
-
-\begin{figure}[t]
-\centering
-\begin{verbatim}
-  <way id="26662301" version="32" timestamp="2020-08-27T04:26:02Z">
-    <nd ref="30204323"/>
-    <nd ref="638346068"/>
-    ...
-    <nd ref="2117131454"/>
-    <nd ref="638346153"/>
-    <tag k="cycleway:left" v="shared_lane"/>
-    <tag k="highway" v="tertiary"/>
-    <tag k="maxspeed" v="60"/>
-    <tag k="name" v="Humphries Road"/>
-    <tag k="sidewalk" v="right"/>
-    <tag k="surface" v="asphalt"/>
-  </way>
-\end{verbatim}
-\caption{Sample OpenStreetMap XML ``way''}
-\label{xml:way_st}
-\end{figure}
-
-Each ``way'' has a unique ``id'', followed by a list of ``node references'' and ``tags''.
-
-The ``node reference'' links to a ``node'', which has a latitude/longitude position.  Therefore, the node reference list effectively describes path of the ``way'' if it were drawn on a map.
-
-The ``tags'' describe characteristics of the way.  In figure \ref{xml:way_st}, the ``way'' is a ``tertiary'' road named ``Humphries Road'' where the speed limit is 60 (kmph) and there is a bicycle lane and a sidewalk.
-
-A ``way'' can be only a \textit{part} of a longer road.  If different sections of a road have different properties, the road will be broken up into multiple ``ways''.  E.g. a change of speed limit would split the road into two ``ways''.
-
-\clearpage
-\section{Nodes}
-\label{osm:nodes}
-
-In a separate section of the OpenStreetMap XML file, each of the ``nodes'' are listed.  A ``node'' is a point on a map, usually just with a latitude and longitude, but occasionally they can have tags to describe special properties, such as the presence of traffic signals as in figure \ref{xml:way_nodes}.\\
-
-\begin{figure}[h]
-\centering
-\begin{verbatim}
-  <node id="30204322" version="18" timestamp="..." lat="-38.1655191" lon="145.1016428"/>
-  <node id="30204323" version="21" timestamp="..." lat="-38.1667063" lon="145.1017474">
-    <tag k="highway" v="traffic_signals"/>
-  </node>
-  <node id="30204324" version="18" timestamp="..." lat="-38.1674697" lon="145.101785"/>	
-\end{verbatim}
-\caption{Sample OpenStreetMap XML ``nodes''}
-\label{xml:way_nodes}
-\end{figure}
-
-\section{Intersections}
-\label{osm:intersections}
-
-If a ``node'' is shared by two more ``ways'', it may be an intersection.  By checking the name of each ``way'' we can see whether it is an intersection, or just a ``node'' at which single road was split into two ways due to a change in a characteristic.
-
-Therefore, to find ``nodes'' that are intersections, look for ``nodes'' that are shared by ``ways'' with multiple distinct names.
-
-\section{Cycleways}
-\label{osm:cycleways}
-
-For the purposes of this project, if a ``way'' has a tag that begins with ``cycleway'', then OpenStreetMap believes that it has some sort of bicycle lane on at least one side of the road.  The ``bicycle'' tag typically appears to mean that bicycles are \textit{permitted}, but it may not mean that there is a dedicated bicycle lane.
-
-
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Computer Environment}
-\label{a:environment}
-
-\section{Machine Learning workstation}
-\label{a:computer}
-
-This workstation was used for all machine learning activities.  TensorFlow 2.3 GPU acceleration was enabled via NVIDA cuDNN and CUDA drivers.
-
-\begin{itemize}
-\item{Windows 10}
-\item{Anaconda 3}
-\item{Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz}	
-\item{32GB RAM}
-\item{NVIDIA GeForce RTX 2080 Ti (12288MB dedicated, 16341MB shared}
-\item{1TB SSD}
-\end{itemize}
-
-
-\section{Nominatim server}
-\label{a:nominatim}
-
-This Linux server ran on a separate machine, as a virtual host.  Its sole purpose was to run a Nominatim server for the reverse-geocoding and geocoding services required by some Jupyter notebooks.
-
-\begin{itemize}
-\item{Ubuntu 20.04 running on Windows 10 under Hyper-V}
-\item{AMD Ryzen 7 3700X 8-core processor 3.6GHz}
-\item{16GB (32 GB for windows host)}
-\item{100MB SSD}
-\end{itemize}
-
-
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Process documentation}
 \label{a:process}
 
@@ -1575,6 +1476,112 @@ Then, a geojson file is created, to allow us to draw on a map where the paved sh
 
 This notebook draws the detected ``paved shoulders'' from notebook 20 on a map, so that they can be visualized.  Most bicycle lanes should also appear as paved shoulders, so it is useful to compare this output to the other maps in notebooks 18 and 11.
 
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\chapter{OpenStreetMap XML Concepts}
+\label{a:osm_concepts}
+
+The use of OpenStreetMap XML extract data is fundamental to the solutions proposed in this research project.  In this appendix, we briefly describe some key concepts in the data, and provide example XML data to demonstrate them.
+
+\section{Ways}
+\label{osm:ways}
+
+A ``way'' in the OpenStreetMap XML data is a line that can be drawn on a map.  Typically, it will represent a road segment, as per the example in figure \ref{xml:way_st}.  However, it could also be the path of a natural feature such as a creek or coastline.  It could be an off-street walking track or bicycle trail.  Or it could be the boundary of a reserve or an estate.
+
+\begin{figure}[t]
+\centering
+\begin{verbatim}
+  <way id="26662301" version="32" timestamp="2020-08-27T04:26:02Z">
+    <nd ref="30204323"/>
+    <nd ref="638346068"/>
+    ...
+    <nd ref="2117131454"/>
+    <nd ref="638346153"/>
+    <tag k="cycleway:left" v="shared_lane"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Humphries Road"/>
+    <tag k="sidewalk" v="right"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+\end{verbatim}
+\caption{Sample OpenStreetMap XML ``way''}
+\label{xml:way_st}
+\end{figure}
+
+Each ``way'' has a unique ``id'', followed by a list of ``node references'' and ``tags''.
+
+The ``node reference'' links to a ``node'', which has a latitude/longitude position.  Therefore, the node reference list effectively describes path of the ``way'' if it were drawn on a map.
+
+The ``tags'' describe characteristics of the way.  In figure \ref{xml:way_st}, the ``way'' is a ``tertiary'' road named ``Humphries Road'' where the speed limit is 60 (kmph) and there is a bicycle lane and a sidewalk.
+
+A ``way'' can be only a \textit{part} of a longer road.  If different sections of a road have different properties, the road will be broken up into multiple ``ways''.  E.g. a change of speed limit would split the road into two ``ways''.
+
+\clearpage
+\section{Nodes}
+\label{osm:nodes}
+
+In a separate section of the OpenStreetMap XML file, each of the ``nodes'' are listed.  A ``node'' is a point on a map, usually just with a latitude and longitude, but occasionally they can have tags to describe special properties, such as the presence of traffic signals as in figure \ref{xml:way_nodes}.\\
+
+\begin{figure}[h]
+\centering
+\begin{verbatim}
+  <node id="30204322" version="18" timestamp="..." lat="-38.1655191" lon="145.1016428"/>
+  <node id="30204323" version="21" timestamp="..." lat="-38.1667063" lon="145.1017474">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="30204324" version="18" timestamp="..." lat="-38.1674697" lon="145.101785"/>	
+\end{verbatim}
+\caption{Sample OpenStreetMap XML ``nodes''}
+\label{xml:way_nodes}
+\end{figure}
+
+\section{Intersections}
+\label{osm:intersections}
+
+If a ``node'' is shared by two more ``ways'', it may be an intersection.  By checking the name of each ``way'' we can see whether it is an intersection, or just a ``node'' at which single road was split into two ways due to a change in a characteristic.
+
+Therefore, to find ``nodes'' that are intersections, look for ``nodes'' that are shared by ``ways'' with multiple distinct names.
+
+\section{Cycleways}
+\label{osm:cycleways}
+
+For the purposes of this project, if a ``way'' has a tag that begins with ``cycleway'', then OpenStreetMap believes that it has some sort of bicycle lane on at least one side of the road.  The ``bicycle'' tag typically appears to mean that bicycles are \textit{permitted}, but it may not mean that there is a dedicated bicycle lane.
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
+\chapter{Computer Environment}
+\label{a:environment}
+
+\section{Machine Learning workstation}
+\label{a:computer}
+
+This workstation was used for all machine learning activities.  TensorFlow 2.3 GPU acceleration was enabled via NVIDA cuDNN and CUDA drivers.
+
+\begin{itemize}
+\item{Windows 10}
+\item{Anaconda 3}
+\item{Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz}	
+\item{32GB RAM}
+\item{NVIDIA GeForce RTX 2080 Ti (12288MB dedicated, 16341MB shared}
+\item{1TB SSD}
+\end{itemize}
+
+
+\section{Nominatim server}
+\label{a:nominatim}
+
+This Linux server ran on a separate machine, as a virtual host.  Its sole purpose was to run a Nominatim server for the reverse-geocoding and geocoding services required by some Jupyter notebooks.
+
+\begin{itemize}
+\item{Ubuntu 20.04 running on Windows 10 under Hyper-V}
+\item{AMD Ryzen 7 3700X 8-core processor 3.6GHz}
+\item{16GB (32 GB for windows host)}
+\item{100MB SSD}
+\end{itemize}
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 \cleardoublepage
 \bibliographystyle{IEEEtran}
