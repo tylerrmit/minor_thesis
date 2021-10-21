@@ -40,14 +40,14 @@ class tf2_model_wrapper(object):
         trained_model_name : str
             The name of the pre-trained model
             
-        output_directory: str
+        output_directory : str
             The directory where the detection log and any output images will be written
             
         download_directory : str, optional
             The directory where images to be processed are found.  Required to set up the model
             wrapper for the apply_model() function
         
-        version_suffix: str, optional
+        version_suffix : str, optional
             The suffix that must be used to identify the correct version of the label map file
             corresponding to this model.  Default = no suffix
         '''
@@ -114,6 +114,16 @@ class tf2_model_wrapper(object):
         
     @tf.function
     def detect_fn(self, image):
+        '''
+        Used by the TensorFlow 2 API to apply the loaded model to an image,
+        and record the results
+        
+        Paramters
+        ---------
+        image : tensor
+            Image to be examined, in tensor format
+        
+        '''
         image, shapes   = self.detection_model.preprocess(image)
         prediction_dict = self.detection_model.predict(image, shapes)
         detections      = self.detection_model.postprocess(prediction_dict, shapes)
@@ -137,62 +147,62 @@ class tf2_model_wrapper(object):
         
         Parameters
         ----------
-        lat: str
+        lat : str
             Latitude of the location to be processed
 
-        lon: str
+        lon : str
             Longitude of the location to be processed
         
-        bearing: int
+        bearing : int
             Bearing of the road at the location to be processed.  Which was is "forward" for the camera?
             
-        way_start_id: int
+        way_start_id : int
             The starting way ID from the OpenStreetMap data, for the road that is being sampled, to provide
             traceability of the results back to the map.
             
-        way_id: int
+        way_id : int
             The way ID from the OpenStreetMap data, for the road segment that is being sampled, to provide
             traceability of the results back to the map.
         
-        node_id: int
+        node_id : int
             The node ID from the OpenStreetMap data, for the intersection that is being sampled, to provide
             traceability of the results back to the map.
         
-        offset_id: int
+        offset_id : int
             The number of metres offset from the intersection being sampled, positive or negative, relative
             to the bearing of the road at the intersection.  E.g. -20 = 20 metres BEFORE the intersection.
             Provides traceability of the results back to the map.
         
-        filename: str, optional
+        filename : str, optional
             If a filename is explicitly supplied with this parameter, it will be examined by the model.
             Otherwise a list of images will be examined based on the location details in other fields.
         
-        heading_offsets: list, optional
+        heading_offsets : list, optional
             A list of offsets from the bearing of the road.  Google Street View images are examined
             for each of these offsets, to provide 360 degree coverage.
             Set this to a list with just a single zero value if supplying the filename option.
         
-        min_score: float, optional
+        min_score : float, optional
             The minimum model confidence score at which we accept that the object has been detected
         
-        mask: list, optional
+        mask : list, optional
             An optional list of (x,y) coordinates in the bitmap image that forms a "mask" to decide which
             parts of the image are examined by the detection model, to mask off one side of the road,
             or exclude areas that are the source of false positives without any prospect of a real
             detection (e.g. reflections from the bonnet of the camera vehicle in dash camera footage)
         
-        write: boolean, optional
+        write : boolean, optional
             Specify whether output images with detection bounding boxes and confidence scores should be written
             to the "hits" and "miss" subdirectories of the output_directory, for examination and troubleshooting
         
-        display: boolean, optional
+        display : boolean, optional
             Specify whether the model should try to display the output image with detection bounding boxes and
             confidence scores to a Jupyter Notebook via pyplot
         
-        log: boolean, optional
+        log : boolean, optional
             Specify whether detection results should be written to "detection_log.csv" in the output_directory
         
-        verbose: boolean, optional
+        verbose : boolean, optional
             Whether to print debug messages to stdout
         '''
         for heading_offset in heading_offsets:
@@ -393,29 +403,29 @@ class tf2_model_wrapper(object):
         batch_filename : str
             The name of a CSV file containing co-ordinates and bearings of images to examine.
             
-        heading_offsets: list, optional
+        heading_offsets : list, optional
             A list of offsets from the bearing of the road.  Google Street View images are examined
             for each of these offsets, to provide 360 degree coverage.
             Set this to a list with just a single zero value if supplying the filename option.
         
-        min_score: float, optional
+        min_score : float, optional
             The minimum model confidence score at which we accept that the object has been detected
         
-        mask: list, optional
+        mask : list, optional
             An optional list of (x,y) coordinates in the bitmap image that forms a "mask" to decide which
             parts of the image are examined by the detection model, to mask off one side of the road,
             or exclude areas that are the source of false positives without any prospect of a real
             detection (e.g. reflections from the bonnet of the camera vehicle in dash camera footage)
         
-        explicit_files: boolean, optional
+        explicit_files : boolean, optional
             Specify whether the batch file will contain explicit filenames (for dash camera footage images)
             or whether the filename needs to be worked out from the location fields (for Google Street View)
             
-        progress: boolean, optional
+        progress : boolean, optional
             Specify whether a progress bar should be displayed in a Jupyter Notebook as it processes,
             each image, via the tqdm package
         
-        verbose: boolean, optional
+        verbose : boolean, optional
             Whether to print debug messages to stdout
         '''
         
@@ -488,20 +498,20 @@ class tf2_model_wrapper(object):
             The name of a CSV file containing co-ordinates and bearings to download from Google Street View.
             If the file has already been downloaded, it is skipped, to save costs.
         
-        min_score: float, optional
+        min_score : float, optional
             The minimum model confidence score at which we accept that the object has been detected
         
-        mask: list, optional
+        mask : list, optional
             An optional list of (x,y) coordinates in the bitmap image that forms a "mask" to decide which
             parts of the image are examined by the detection model, to mask off one side of the road,
             or exclude areas that are the source of false positives without any prospect of a real
             detection (e.g. reflections from the bonnet of the camera vehicle in dash camera footage)
             
-        progress: boolean, optional
+        progress : boolean, optional
             Specify whether a progress bar should be displayed in a Jupyter Notebook as it processes,
             each image, via the tqdm package
         
-        verbose: boolean, optional
+        verbose : boolean, optional
             Whether to print debug messages to stdout
         '''
         
@@ -565,23 +575,23 @@ class tf2_model_wrapper(object):
         
         Parameters
         ----------
-        directory: str
+        directory : str
             Directory where the input video file is found, and where the output video
             will be written
         
-        video_in: str
+        video_in : str
             Filename of the video to be processed
             
-        video_out: str
+        video_out : str
             Filename of the output video with detection overlay
         
-        min_score: float, optional
+        min_score : float, optional
             The minimum model confidence score at which we accept that the object has been detected
         
-        fps: int, optional
+        fps : int, optional
             Number of frames per second expected in the input video, this will be replicated in the output
         
-        mask: list, optional
+        mask : list, optional
             An optional list of (x,y) coordinates in the bitmap image that forms a "mask" to decide which
             parts of the image are examined by the detection model, to mask off one side of the road,
             or exclude areas that are the source of false positives without any prospect of a real
