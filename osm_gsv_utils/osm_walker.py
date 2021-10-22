@@ -28,8 +28,13 @@ from tqdm.notebook import tqdm, trange
 
 class osm_walker(object):
     '''
-    A class used to "walk" routes in an OSM extract and create a list of sample points and bearings
-
+    This class loads an OpenStreetMap XML extract and caches the most relevant parts in memory.
+    
+    Its original purpose was to "walk" down streets in an OpenStreetMap extract for the survey
+    area, and create a list of points to sample from Google Street View.  However it grew to handle
+    the details of any operation where we needed to work with the OpenStreetMap (OSM) data, e.g.
+    to correlate detection points from dash camera footage to the map data, draw inferred routes,
+    etc.
     '''
 
     def __init__(self, filename_main, filename_margin=None, filter_log=None, verbose=False):
@@ -39,13 +44,26 @@ class osm_walker(object):
         filename_main : str
             The name of the main OSM XML file to load
             Either a full path, or assume it's relative to the current working directory
-        filename_margin: str
+            
+        filename_margin: str, optional
             The name of a second OSM XML file encompassing the first, with a "margin"
-            around it to catch intersecting streets just outside the main area
+            around it to catch intersecting streets just outside the main area.  Only
+            selected parts of the second file are cached, just enough to identify intersection
+            nodes
+            
+        filter_log :  str, optional
+            The path to a "filter log" CSV file containing the list of way IDs and node IDs
+            to include when loading the OSM data.  If the OSM data is much bigger than the
+            route or area we want to look at.  Only used in the early stages of the project,
+            and deprecated in favour of using the "osmium" tool to reduce OSM extracts down
+            to a selected area
+        
+        verbose : boolean, optional
+            Specify whether debug messages should be written to STDOUT
         '''
 
-        # Cache ways in dict by name
-        self.ways_by_name                = {} # Dictionary giving, for each way name, a list of ways
+        # Dictionaries used to cache OSM information in memory
+        self.ways_by_name                = {} # Dictionary giving, for each way name, a list of way ids
         self.ways_by_id                  = {} # Dictionary to look up the way details by the way id
         self.way_names_by_id             = {} # Dictionary to look up the way name by the way id
         self.way_starts                  = {} # Record the start node for each way
@@ -63,10 +81,10 @@ class osm_walker(object):
         
         self.linked_way_sections         = {} # Dictionary giving ways that have been re-connected by name, list of intersection node_ids in order
         self.linked_way_sections_all     = {} # Dictionary giving ways that have been re-connected by name, list of ALL node_ids in order
-        self.linked_way_sections_cwy     = {} # Dictionary to if any way_id linked to the node in self.linked_way_sections_all is tagged as cycleway
+        self.linked_way_sections_cwy     = {} # Dictionary to say if any way_id linked to the node in self.linked_way_sections_all is tagged as cycleway
         
         self.linked_linestrings          = {} # Dictionary where linked ways are stored as shapely LineString objects
-        self.linked_coord_list           = {}
+        self.linked_coord_list           = {} # Dictionary where linked ways are stored as coordinate lists
         
         self.way_id_start_by_way_id      = {} # Dictionary showing the way_id_start for each way_id, where did it go?
         
@@ -76,10 +94,10 @@ class osm_walker(object):
         
         self.tagged_features             = [] # Features we are building to draw on a map - cycleway tagged routes
         self.detected_features           = [] # Features we are building to draw on a map - detected routes
-        self.both_features               = []
-        self.either_features             = []
-        self.tagged_only_features        = []
-        self.detected_only_features      = []
+        self.both_features               = [] # " - routes that are in both OSM and the detected routes
+        self.either_features             = [] # " - routes that are in either OSM or the detected routes
+        self.tagged_only_features        = [] # " - routes that are tagged in OSM but were not detected
+        self.detected_only_features      = [] # " - routes that were detected but are not tagged in OSM
         
         self.included_nodes              = {} # Nodes that were included in a survey route, value=way_id_start
         self.filtered_nodes              = {} # Nodes that were filtered
@@ -87,6 +105,8 @@ class osm_walker(object):
         
         # If we have been given a CSV file of points to include (because we are filtering to a route)
         # then record them in a dict, ready to compare to the XML data as we load it
+        # We want to know this up front so we can disregard OSM data as we parse it,
+        # if we need to do that to save memory
         if filter_log is not None:
             self.load_filter_log(filter_log)
             
@@ -95,21 +115,30 @@ class osm_walker(object):
         # that the in-memory approach is feasible
         doc_main = xml.dom.minidom.parse(filename_main)
 
+        # Call a helper function to atually interpret the XML
         self.process_osm_xml(doc_main, intersections_only=False, filter_log=filter_log, verbose=verbose)
         
         if filename_margin:
             # Load a slightly bigger XML file into memory, to catch nodes that are JUST outside the
             # boundary of the locality
+            # We only add information to our cache if it relates to ways associated with each node,
+            # which allows us to correctly identify intersections (even if the intersecting road is
+            # outside the boundary of the main XML file apart from the intersection itself)
             doc_margin = xml.dom.minidom.parse(filename_margin)
 
             self.process_osm_xml(doc_margin, intersections_only=True, verbose=verbose)
             
-        # Report on any filtering
+        # Report on how many nodes were loaded from the OSM extract(s) and whether any of them were filtered
         if filter_log is not None:
             print('Nodes Loaded: [{0:d}] Filtered = [{1:d}]'.format(len(self.node_coords), len(self.filtered_nodes)))
             
             
     def load_filter_log(self, filter_log):
+        '''
+        Load a list of way IDs and node IDs from a CSV file to include when loading subsequent
+        OSM XML extracts.  If we load a filter log, any other way ID or node ID not on the whitelist
+        will be ignored
+        '''
         df = pd.read_csv(filter_log)
         
         for index in trange(len(df.index)):
@@ -122,19 +151,43 @@ class osm_walker(object):
             
 
     def process_osm_xml(self, doc, intersections_only=False, filter_log=None, verbose=True):
+        '''
+        Parse the OSM XML data
+        
+        Parameters
+        ----------
+        doc : xml document
+            XML document contents being loaded/interpreted
+            
+        intersections_only : boolean, optional
+            Can be set to True to only load information relating to intersections from this file
+        
+        filter_log : str, optional
+            The path to a "filter log" CSV file containing the list of way IDs and node IDs
+            to include when loading the OSM data.  If the OSM data is much bigger than the
+            route or area we want to look at.  Only used in the early stages of the project,
+            and deprecated in favour of using the "osmium" tool to reduce OSM extracts down
+            to a selected area
+            
+        verbose : boolean, optional
+            Specify whether debug messages should be written to STDOUT
+        '''
+        
         # Get ways and nodes from XML document
         ways_xml  = doc.getElementsByTagName('way')
         nodes_xml = doc.getElementsByTagName('node')
 
+        # First, process the ways in turn, displaying a progress bar in Jupyter Notebook
         for way_idx in trange(0, len(ways_xml)):
             way = ways_xml[way_idx]
             
             # Get the ID for this way
             way_id = way.getAttribute('id')
             
+            # Start off assuming no cycleway tag has been found for the way
             is_cycleway = False
                             
-            # Find the name for the way based on a 'tag' element where k='name'
+            # Examine each "tag" for the Way in turn
             tags = way.getElementsByTagName('tag')
             found_name = False
             found_hwy  = False
@@ -143,6 +196,8 @@ class osm_walker(object):
             for tag in tags:
                 k = tag.getAttribute('k')
                 v = tag.getAttribute('v').upper()
+                
+                # We want to find a name for the way
                 
                 # First preference is to use the actual name
                 if not found_name and k == 'name':
@@ -194,6 +249,9 @@ class osm_walker(object):
                     if v not in ['NO']:
                         is_cycleway = True
             
+            # If after reading all the tags, we have a name for the way and we
+            # didn't set it to None due to it being a cliff, etc. record its information
+            # to the cache dictionaries
             if way_name is not None and found_hwy:
                 # Remember the name for this way, so we don't have the parse the whole way again later
                 self.way_names_by_id[way_id] = way_name
@@ -212,8 +270,7 @@ class osm_walker(object):
                     # Record whether this was tagged as a cycleway or not
                     self.way_is_cycleway[way_id] = is_cycleway
                     
-                # Record the association with this way against the node
-                # We can tell that an intersection is a node associated with multiple ways
+                # Record the association betwee this way and each of its nodes
                 node_refs = way.getElementsByTagName('nd')
                 for idx, node_ref in enumerate(node_refs):
                     ref = node_ref.getAttribute('ref')
@@ -244,6 +301,7 @@ class osm_walker(object):
                     else:
                         self.filtered_nodes[ref] = True
                 
+                # Record the start and end node IDs for the way
                 node_ends = [node_refs[0], node_refs[-1]]
                 for node_ref in node_ends:
                     ref = node_ref.getAttribute('ref')
@@ -259,7 +317,8 @@ class osm_walker(object):
                         self.filtered_nodes[ref] = True
                 
                 recorded = True
-                 
+        
+        # Now, process the node details, from a different part of the XML
         # Cache nodes in dict by id/ref
         if not intersections_only:
             for node in nodes_xml:
@@ -296,12 +355,27 @@ class osm_walker(object):
     # Get the bearing from one node to the next
     @staticmethod
     def bearing_from_nodes(prev_node, next_node):
+        '''
+        Get a bearing from one node to the next, by looking up the XML object latitude
+        and longitude attributes, and using the geodesic library to calculate it
+        
+        Parmeters
+        ----
+        prev_node : xml
+            An XML entity representing the first node, with "lat" and "lon" attributes
+            
+        next_node : xml
+            An XML entity representing the second node, with "lat" and "lon" attributes
+        
+        '''
         lat1 = float(prev_node.getAttribute('lat'))
         lon1 = float(prev_node.getAttribute('lon'))
         lat2 = float(next_node.getAttribute('lat'))
         lon2 = float(next_node.getAttribute('lon'))
     
         bearing = Geodesic.WGS84.Inverse(lat1, lon1, lat2, lon2)['azi1']
+        
+        # Convert any negative bearings into a number between 0 and 360
         if bearing < 0:
             bearing = bearing + 360
         
@@ -311,15 +385,74 @@ class osm_walker(object):
     # Get a series of points from one point to the next, at regular intervals up to a desired offset
     @staticmethod
     def expand_offsets(lat1, lon1, lat2, lon2, max_offset, interval, way_id_start, way_id, node_id, way_name='-'):
+        '''
+        Given two points, generate a list of points every "interval" metres between them, up to "max_offset" offset
+        
+        Useful if trying to generate a list of sample points every X metres away from a no
+        de, in the direction
+        of the next node
+        road in a survey area
+        
+        Parameters
+        ----------
+        
+        lat1 : float
+            Latitude of point 1, which will correspond to node_id
+            
+        lon1 : float
+            Longitude of point 1, which will correspond to node_id
+            
+        lat2 : float
+            Latitude of point 2, which is the direction of the next node, showing us which direction to move
+            
+        lon2 : float
+            Longitude of point 2, which is the direction of the next node, showing which direction to move
+            
+        max_offset : ?
+        
+        interval : int
+            Number of metres between each point in the output series
+            
+        way_id_start : int
+            The way_id_start that this pair of points was sampled from
+            This is a special way_id that is the first way in a string of adjoining
+            ways with the same name that were re-connected
+            OSM breaks up roads into multiple ways if e.g. the speed limit or some
+            other characteristic changes
+        
+        way_id : int
+            The way_id that this pair of points is sampled from
+            
+        node_id : int
+            The node_id that this point is sampled from, probably an intersection node
+            
+        way_name : str, optional
+            The name of the way that this pair of points is sampled from
+        '''
+        
+        # Initialise the list of sample point sthat will be returned
+        # Each piont is a list with elements in a set order, instead of a custom class as it probably should be
         sample_points = []
     
+        # Calculate a bearing from the node to the next point
         bearing = Geodesic.WGS84.Inverse(float(lat1), float(lon1), float(lat2), float(lon2))['azi1']
     
+        # Generate a line between the points, we need this to make sure we don't go
+        # beyond the next point, that would be a waste because we might go too far off
+        # track, and we might end up with far more points than we need
         line = Geodesic.WGS84.InverseLine(float(lat1), float(lon1), float(lat2), float(lon2))
     
+        # Calculate how many steps are required to get to max_offset by interval
         num_steps     = int(math.ceil(abs(max_offset) / interval))
+        
+        # Calculate a maximum number of steps based on the distance between the two nodes and the interval
+        # line and num_steps_max were useful when building a list of sample points every interval,
+        # along every road.  When we switched to just sampling the immediate area around intersections,
+        # "num_steps_max" became no longer used.  Leaving them here in the code in case we later want to go
+        # back and support the original option
         num_steps_max = int(math.ceil(line.s13 / interval))
     
+        # Iterate through the required number of steps
         if max_offset < 0:
             polarity = -1
         else:
@@ -327,9 +460,14 @@ class osm_walker(object):
         
         for step_i in range(num_steps + 1):
             if step_i > 0:
+                # Make sure the step size does not go beyond the next point, potentially off the path
                 s = min(interval * step_i, line.s13)
+                
+                # Generate a new point s distance along the line
                 g = line.Position(s, Geodesic.STANDARD | Geodesic.LONG_UNROLL)
             
+                # Build the list that represents the point and the metadata to show where it was
+                # sampled from
                 sample_point = [
                     g['lat2'],
                     g['lon2'],
@@ -341,6 +479,7 @@ class osm_walker(object):
                     way_name
                 ]
             
+                # Append this point to the output
                 sample_points.append(sample_point)
     
         return sample_points
@@ -348,6 +487,34 @@ class osm_walker(object):
 
     # Get every sample point for a way
     def walk_way_intersections_by_id(self, way_id_start, way_id, min_offset=0, max_offset=0, interval=10, debug=False):
+        '''
+        Generate a list of sample points around intersections on a linked series of ways
+        
+        A sample point will be generated very interval metres to either side of every intersection,
+        within a range of offsets given by min_offset and max_offset.  If min_offset and max_offset are both
+        zero, then only the intersection point itself will be sampled, right in the middle of the intersection.
+        
+        Parameters
+        ----------
+        way_id_start : int
+            The way_id at the start of a linked sequence of ways with the same name, that we are traversing
+            
+        way_id : int
+            The way_id within the linked sequence of ways
+            
+        min_offset : int, optional
+            minimum offset metres from intersection to sample
+            
+        max_offset : int, optional
+            maximum offset metres from intersection to sample
+            
+        interval : int, optional
+            The number of metres between each sample point
+            
+        debug : boolean
+            Whether debug messages should be printed to STDOUT
+        '''
+        
         # Initialise list of points that will be returned
         sample_points = []
     
@@ -363,6 +530,7 @@ class osm_walker(object):
         for idx, node_ref in enumerate(node_refs):
             ref = node_ref.getAttribute('ref')
         
+            # Only examine intersection nodes, and the start and end nodes
             if (self.is_intersection_node(ref)) or (idx == 0) or (idx == len(node_refs) - 1):
                 if debug:
                     print('Debug Node Intersection: {0:s} {1:d} {2:.6f}, {3:.6f}'.format(ref, len(self.way_names_for_node[ref]),
@@ -372,6 +540,8 @@ class osm_walker(object):
             
                 # Find any negative offset samples required
                 if idx > idx_first and min_offset < 0 and interval > 0:
+                    # Create a list of sample points for the intersection based on the heading
+                    # from the previous node on the way
                     prev_points = osm_walker.expand_offsets(
                         self.nodes[node_refs[idx  ].getAttribute('ref')].getAttribute('lat'),
                         self.nodes[node_refs[idx  ].getAttribute('ref')].getAttribute('lon'),
@@ -385,6 +555,7 @@ class osm_walker(object):
                         self.way_names_by_id[way_id]
                     )
                 
+                    # Add to the output points for the way
                     sample_points = sample_points + prev_points[::-1] # Reversed with slicing
             
                 # Find the bearing at the node itself, and output the node itself
@@ -431,10 +602,26 @@ class osm_walker(object):
         
         return sample_points
 
+
     # Given a way by its ID, are there any other ways with the same name that intersect
     # with its first node?
     def is_way_start(self, way_id, verbose=False):
-        # Retrieve the details of the way, and find the first node ID
+        '''
+        Given a way by its IDS, are there any other ways WITH THE SAME NAME that intersect with
+        its first node?  If not, then it is a way_id_start, the first way in potentially a sequence
+        of linked ways.  Otherwise, it is just one of the later ways in a sequence.
+        
+        Parameters
+        ----------
+        way_id : int
+            The way id to check
+            
+            
+        verbose : boolean, optional
+            Whether to output debug messages to STDOUT
+        '''
+        
+        # Retrieve the cached XML details of the way, and find its first node ID
         way           = self.ways_by_id[way_id]
         node_refs     = way.getElementsByTagName('nd')
         first_node_id = node_refs[0].getAttribute('ref')
@@ -477,9 +664,30 @@ class osm_walker(object):
     
         return False
         
+        
     # At the end of a way, does it join to another way by the same name?
     def find_next_way(self, way_id, match_name=True, include_used=False, verbose=False):
-        # Retrieve the details of the way, and find the last node ID
+        '''
+        At the end of a way, does it join to another way by the same name?
+        
+        Parameters
+        ----------
+        way_id : int
+            The id of the way being checked
+            
+        match_name : boolean, optional
+            Whether we are requiring that the adjoining way have the same name,
+            or whether it could have a different name e.g. "ROUNDABOUT"
+            
+        include_used : boolean, optional
+            Whether to include or exclude ways that we have already traversed as we work
+            our way through the survey area
+            
+        verbose : boolean, optional
+            Whether debug messages should be written to STDOUT
+        '''
+        
+        # Retrieve the details of the way, and find its last node ID
         way           = self.ways_by_id[way_id]
         node_refs     = way.getElementsByTagName('nd')
         last_node_id  = node_refs[-1].getAttribute('ref')
@@ -517,6 +725,31 @@ class osm_walker(object):
     # Find intersection points (and offsets from intersections) for all ways
     # Walking down ajoining ways of the same name in a sensible order, where possible
     def sample_all_way_intersections(self, min_offset, max_offset, interval=10, ordered=False, verbose=False):
+        '''
+        Find sample points at every intersection along every way in the survey area
+        
+        Parameters
+        ----------
+        min_offset : int
+            minimum offset metres from intersection to sample
+            
+        max_offset : int
+            maximum offset metres from intersection to sample
+            
+        interval : int, optional
+            The number of metres between each sample point
+            
+        ordered : boolean, optional
+            If this is set to false, we will just traverse every way, in any random order.
+            If it is set to true, we will attempt to link up ways into coherent chains
+            with a way_id_start, which is a little more involved but might make the output
+            sample images easier for a human to wrap their head around due to more coherent
+            sample order.
+            
+        verbose : boolean, optional
+            Whether debug messages should be written to STDOUT
+        
+        '''
         all_points = []
 
         # If we don't want to try to walk in a natural order, do it the simple and fast way
@@ -534,7 +767,8 @@ class osm_walker(object):
         # Link together way sections that belong to the same name and join end-to-end
         self.link_way_sections(verbose=verbose)
         
-        # Iterate through each way section
+        # Iterate through each way section that we've linked back up into a chain (or included as-is
+        # if it does not belong to a larger chain)
         all_points = []
         
         for way_id_start in self.linked_way_sections.keys():
@@ -557,6 +791,19 @@ class osm_walker(object):
     
  
     def link_way_sections(self, filter_way_name=None, verbose=False):
+        '''
+        Where continuous roads have been fragmented into ways due to a change of characteritic
+        (e.g. speed limit change) we link them back up and store information about
+        the resulting chains.
+        
+        Parameters
+        ----------
+        filter_way_name : str, optional
+            Optionally only look to link up way segments for ways of one particular name
+            
+        verbose : boolean, optional
+            Specify whether debug messages should be written to STDOUT
+        '''
         # Process ways in name order, so we can walk down streets that are divided into multiple ways in an
         # order that appears sensible to a human
     
@@ -660,8 +907,8 @@ class osm_walker(object):
                 self.linked_way_sections_cwy[way_id_start] = section_cwy
                 self.linked_way_sections[way_id_start]     = section
                 if len(coord_list) > 1:
-                    self.linked_linestrings[way_id_start]      = LineString(coord_list)
-                    self.linked_coord_list[way_id_start]       = coord_list
+                    self.linked_linestrings[way_id_start] = LineString(coord_list)
+                    self.linked_coord_list[way_id_start]  = coord_list
                 
                 if verbose:
                     print('Saving {0:s} {1:s}'.format(way_name, way_id_start))
@@ -732,8 +979,8 @@ class osm_walker(object):
                 self.linked_way_sections_cwy[way_id_start] = section_cwy
                 self.linked_way_sections[way_id_start]     = section
                 if len(coord_list) > 1:
-                    self.linked_linestrings[way_id_start]      = LineString(coord_list)
-                    self.linked_coord_list[way_id_start]       = coord_list
+                    self.linked_linestrings[way_id_start] = LineString(coord_list)
+                    self.linked_coord_list[way_id_start]  = coord_list
                 
                 if verbose:
                     print('Saving {0:s} {1:s}'.format(way_name, way_id))
@@ -741,7 +988,15 @@ class osm_walker(object):
                     print('section_all: {0:3d} {1:s}'.format(len(section_all), str(section_all)))                 
     
     
-    def load_detection_log(self, filename):        
+    def load_detection_log(self, filename):
+        '''
+        Load a detection log into memory, indexed by latitude-longitude
+        
+        Parameters
+        ----------
+        filename : str
+            Path to the detection_log.csv file to be loaded
+        '''
         df = pd.read_csv(filename)
         
         for index, row in df.iterrows():
@@ -755,13 +1010,31 @@ class osm_walker(object):
                 
                 
     def snap_detection_log(self, filename_in, filename_out):
+        '''
+        Load a detection log, and for each point, find the closest corresponding way/node
+        in the OpenStreetMap data, so that the detection is "aligned" to the road network,
+        and we can easily compare the detected routes to what is tagged in OpenStreetMap.
+        
+        Parameters
+        ----------
+        filename_in : str
+            Path to the input detection_log.csv
+            
+        filename_out : str
+            Path to the output detection log where the points have been aligned
+            to the closest way_id and node_id
+        '''
+        
+        # Read the original file
         df = pd.read_csv(filename_in)
         
-        tqdm.pandas()
-        
+        # Initialise the output file, with header
         output_file = open(filename_out, 'w')
         output_file.write('lat,lon,bearing,heading,way_id_start,way_id,node_id,offset_id,score,bbox_0,bbox_1,bbox_2,bbox_3,way_name\n')
-                        
+            
+        # Process the input detection log one entry at a time
+        tqdm.pandas() 
+             
         df.progress_apply(lambda row: self.snap_row(
             output_file,
             row['lat'],
@@ -778,10 +1051,48 @@ class osm_walker(object):
                
 
     def snap_row(self, output, lat, lon, bearing, heading, score, bbox_0, bbox_1, bbox_2, bbox_3):
+        '''
+        Align a single row/point in a detection log to the closest corresponding way_id and node_id
+        and that node_id's precise location
+        
+        Parameters
+        ----------
+        lat : float
+            The latitude of the original point (e.g. from the dash camera GPS sensor
+            
+        lon : float
+            The longitude of the original point (e.g. from the dash camera GPS sensor
+        
+        bearing : int
+            The original bearing at the detection point
+            
+        heading : int
+            The original bearing at the detection point, will be a copy of heading
+            
+        score : float
+            The original score in the detection log
+            
+        bbox_0 : float
+            The original bounding box recorded in the detection log
+            
+        bbox_1 : float
+            The original bounding box recorded in the detection log
+            
+        bbox_2 : float
+            The original bounding box recorded in the detection log
+            
+        bbox_3 : float
+            The original bounding box recorded in the detection log
+        '''
+        
+        # Create a Point object from the original location
         p = Point(lat, lon)
         
-        
+        # Do this TWICE, once to find the closest intersection node, and once to find the closest node
+        # of any type`
         for option in [True, False]:
+            # Find the nearest node in the OpenStreetMap data for the point
+            # Returns the way_id_start and node_id, plus the distance and whether it is an intersection
             way_id_start, node_id, distance, is_intersection = self.find_nearest_node(p, want_intersection=option)
         
             # If the closest node is an intersection, don't output it twice
@@ -807,6 +1118,19 @@ class osm_walker(object):
 
    
     def is_intersection_node(self, node_id):
+        '''
+        Check if a node is an intersection
+        
+        A node is an intersection if there are multiple ways that share the node, with more than one
+        distinct way name, where the way is a road and not a property boundary or natural feature
+        (Property boundaries and natural features etc. are already filtered out as we load the OpenStreetMap
+        XML data into memory)
+        
+        Parameters
+        ----------
+        node_id : int
+            The node to check
+        '''
         if len(self.way_names_per_node[node_id]) > 1:
             return True
         else:
@@ -814,16 +1138,44 @@ class osm_walker(object):
         
         
     def write_geojsons(self, name, geojson_directory, intersection_skip_limit=1, infer_ends=True, verbose=False):
+        '''
+        Once we have detected our routes, write a series of geojson files to show our detected routes,
+        vs. what is tagged in OpenStreetMap.  Additional geojson files are created to show where they agree
+        and disagree
+        
+        Parameters
+        ----------
+        name : str
+            A locality name or label to include as the prefix to all output geojson files
+        
+        geojson_directory : str
+            The directory where all geojson files will be written
+            
+        intersection_skip_limit : int, optional 
+            The number of intersections between "hits" that can be "misses" before the assume that a bicycle
+            lane route was interrupted
+            
+        infer_ends : boolean, optional
+            When intersection_skip_limit > 0, should that be applied to fill in a small gap at the
+            end of a road?  Or just to small gaps sandwiched between "hits" on the road
+            
+        verbose : boolean, optional
+            Specify whether debug messages should be written to STDOUT
+        '''
+        
+        # Initialise lists of geojson "features" representing lines on each map
         self.detected_features      = []
         self.tagged_features        = []
         self.both_featurtes         = []
         self.detected_only_features = []
         self.tagged_only_features   = []
         
+        # For each linked chain of ways, find the parts of the way that appear to have bicycle lane routes,
+        # and save the output to the above features lists
         for way_id_start in self.linked_way_sections.keys():
-        #for way_id_start in ['841124847']:
             self.draw_way_segment(way_id_start, intersection_skip_limit=intersection_skip_limit, infer_ends=infer_ends, verbose=verbose)
         
+        # Take the features lists and write them to the corresponding geojson files
         self.write_geojson(name, geojson_directory, 'hit',      self.detected_features)
         self.write_geojson(name, geojson_directory, 'tag',      self.tagged_features)
         self.write_geojson(name, geojson_directory, 'both',     self.both_features)
@@ -831,7 +1183,7 @@ class osm_walker(object):
         self.write_geojson(name, geojson_directory, 'hit_only', self.detected_only_features)
         self.write_geojson(name, geojson_directory, 'tag_only', self.tagged_only_features)
         
-        # Compare distances
+        # Measure the total distance of routes in each geojson files, to provide a comparison measure
         for part in ['hit', 'tag', 'both', 'either', 'hit_only', 'tag_only']:
             geojson_filename = os.path.join(geojson_directory, part + '.geojson')
             
@@ -841,18 +1193,40 @@ class osm_walker(object):
         
         
     def write_geojson(self, name, geojson_directory, mode, features):
+        '''
+        Write a geojson file based on a list of features we have detected as routes for the map
+        
+        Parameters
+        ----------
+        name : str
+            A locality name or label to include as the prefix to all output geojson files
+        
+        geojson_directory : str
+            The directory where all geojson files will be written
+            
+        mode : str
+            A string to include in the output filename, after the "name" to describe the content,
+            e.g. "hit", "both", etc.
+            
+        features : list
+            The list of features to write to the geojson file
+        '''
+        
         print('Writing ' + mode + ', feature count: ' + str(len(features)))
         
+        # Determine the output filename
         label = '{0:s}_{1:s}'.format(name, mode)
         
         geojson_filename = os.path.join(geojson_directory, mode + '.geojson')
         
+        # Construct a FeatureCollection from the Features list
         featurecollection = {
             'type':     'FeatureCollection',
             'name':     label,
             'features': features
         }
         
+        # Write the file
         print('Writing to: ' + geojson_filename)
         with open(geojson_filename, 'w') as outfile:
             json.dump(featurecollection, outfile, indent=4)
@@ -860,7 +1234,32 @@ class osm_walker(object):
     
     
     def draw_way_segment(self, way_id_start, intersection_skip_limit=1, infer_ends=True, verbose=False):
+        '''
+        For a given way, infer bicycle lane routes based on the detections we have loaded from
+        a detection log, and possibly aligned to the OpenStreetMap nodes if the data came from
+        a dash camera where the points were not already aligned.
+        
+        Parameters
+        ----------
+        way_id_start : int
+            The first way_id in a linked chain of ways to assess
+            
+         intersection_skip_limit : int, optional 
+            The number of intersections between "hits" that can be "misses" before the assume that a bicycle
+            lane route was interrupted
+            
+        infer_ends : boolean, optional
+            When intersection_skip_limit > 0, should that be applied to fill in a small gap at the
+            end of a road?  Or just to small gaps sandwiched between "hits" on the road
+            
+        verbose : boolean, optional
+            Specify whether debug messages should be written to STDOUT           
+        '''
+        
+        # Find each way_id representing a section that was linked to this way_id_start
         self.section_node_list = self.linked_way_sections_all[way_id_start]
+        
+        # Retrieve info on whether we found any cycleway tags for any way_id associated with way_id_strt
         self.section_node_cwys = self.linked_way_sections_cwy[way_id_start]
         
         self.node_is_intersection = {}
@@ -889,8 +1288,7 @@ class osm_walker(object):
             elif node_id not in self.node_tagged:
                 self.node_tagged[node_id] = 0
                 
-            self.node_hit_assumed[node_id] = 0
-            
+            self.node_hit_assumed[node_id] = 0       
             
         # Infer between hits if there aren't too many missed intersections
         if intersection_skip_limit > 0:
@@ -959,51 +1357,67 @@ class osm_walker(object):
                 
 
     def draw_way_segment_features(self, way_id_start, mode):
+        '''
+        Return a list of features for a way_id_start that should be drawn on a map
+        
+        Parameters
+        ----------
+        
+        way_id_start : int
+            The first way_id in a linked chain of ways to assess
+            
+        mode : str
+            The label associated with the features, e.g. "hit", "both", etc.        
+        '''
+        
+        # Retrieve the ordered list of nodes in the linked ways associated with way_id_start
         section_node_list = self.linked_way_sections_all[way_id_start]
         
+        # Start with an empty feature list, and an empty list of coordinate lists
         features = []
-        
         coordinates_list_list = []
         
         coordinates_open = False
         coordinates      = []
-                
+               
+        # Look at each node in turn...
         for idx in range(0, len(section_node_list)):
             node_id = section_node_list[idx]
             
+            # Did we detect a bicycle route here?
+            # Yes, if either we explicitly detected it, or if we assumed it based on filling in a gap with intersection_skip_limit
             hit = self.node_hit_detected[node_id] + self.node_hit_assumed[node_id]
+            
+            # Was a bicycle route tagged in the OpenStreetMap data here?`
             tag = self.node_tagged[node_id]
-            
-            # Is this node tagged as a cycleway in any way that is part of this segment?
-            # Check each way in the segment...
-            
-            #tag = 0
-            #for way_id_part in self.linked_way_sections[way_id_start]:                
-            #    # where the node is linked to that way...
-            #    if way_id_part in self.way_ids_per_node[node_id]:
-            #        if self.way_is_cycleway[way_id_part]:
-            #            tag = 1
-                
+                        
+            # Did they both agree there is a cycleway here?    
             if hit and tag:
                 both = 1
             else:
                 both = 0
                 
+            # Was a route detected here but not tagged in OpenStreetMap?
             if hit and not tag:
                 hit_only = 1
             else:
                 hit_only = 0
                 
+            # Was a route tagged in OpenStreetMap but not detected?                
             if tag and not hit:
                 tag_only = 1
             else:
                 tag_only = 0
                 
+            # Did either of them believe there is a bicycle lane here?
             if hit or tag:
                 either = 1
             else:
                 either = 0
-                
+               
+            # Based on the "mode" -- which map are we drawing -- decide whether our "pen"
+            # is down here.  If the pen is down here and the next node, that gets added
+            # to the Feature list and becomes a line on the map
             if mode == 'hit' and hit:
                 pen_down = 1
             elif mode == 'tag' and tag:
@@ -1018,10 +1432,12 @@ class osm_walker(object):
                 pen_down = 1
             else:
                 pen_down = 0
-                
+            
+            # If our pen is down, add this to the list of coordinates
             if pen_down:
                 coordinates_open = True
                 coordinates      = coordinates + [[self.node_coords[node_id][1], self.node_coords[node_id][0]]]
+            # If our pen is no longer down, but it was, finish off the line
             elif coordinates_open:
                 if len(coordinates) > 1:
                     coordinates_list_list = coordinates_list_list + [coordinates]
@@ -1034,6 +1450,8 @@ class osm_walker(object):
             coordinates_open = False
             coordinates      = []
                 
+        # Take the coordinate list lists for each line, and build the actual "Feature" data structure, then append it
+        # to the results
         if len(coordinates_list_list) > 0:               
             for i in range(0, len(coordinates_list_list)):
                 feature = {
@@ -1048,14 +1466,21 @@ class osm_walker(object):
                         'coordinates': coordinates_list_list[i]
                     }
                 }
-            
                 
                 features.append(feature)
         
         return features
        
     
-    def draw_find_next_intersection(self, idx):        
+    def draw_find_next_intersection(self, idx):  
+        '''
+        Find the next intersection in the list of nodes in the road segment currently being examined
+        
+        Parameters
+        ----------
+        idx : int
+            The index of the node we are currently looking at within the road segment
+        '''
         if idx is None:
             return None
             
@@ -1067,7 +1492,15 @@ class osm_walker(object):
         return None
        
        
-    def draw_find_prev_intersection(self, idx):        
+    def draw_find_prev_intersection(self, idx):  
+        '''
+        Find the previous intersection in the list of nodes in the road segment currently being examined
+        
+        Parameters
+        ----------
+        idx : int
+            The index of the node we are currently looking at within the road segment
+        '''    
         if idx is None:
             return None
             
@@ -1079,7 +1512,15 @@ class osm_walker(object):
         return None
 
 
-    def draw_find_next_hit(self, idx):        
+    def draw_find_next_hit(self, idx): 
+        '''
+        Find the next node with a "hit" in the list of nodes in the road segment currently being examined
+        
+        Parameters
+        ----------
+        idx : int
+            The index of the node we are currently looking at within the road segment
+        '''    
         if idx is None:
             return None
             
@@ -1091,7 +1532,15 @@ class osm_walker(object):
         return None      
         
         
-    def draw_find_prev_hit(self, idx):        
+    def draw_find_prev_hit(self, idx):   
+        '''
+        Find the previous node with a "hit" in the list of nodes in the road segment currently being examined
+        
+        Parameters
+        ----------
+        idx : int
+            The index of the node we are currently looking at within the road segment
+        '''     
         if idx is None:
             return None
             
@@ -1103,7 +1552,21 @@ class osm_walker(object):
         return None
       
       
-    def draw_count_intersection_miss_between(self, prev_hit, next_hit):       
+    def draw_count_intersection_miss_between(self, prev_hit, next_hit):  
+        '''
+        Count how many "missed" intersections occur between two "hits" in the list of nodes
+        in the road segment currently being examined
+        
+        Parameters
+        ----------
+        prev_hit : int
+            The index of the first node with a hit, within the road segment
+            
+        next_hit : int
+            The index of the next node with a hit, within the road segment
+        ''' 
+    
+        # Sanity check of inputs
         if prev_hit is None or next_hit is None:
             return None
             
@@ -1117,6 +1580,14 @@ class osm_walker(object):
        
        
     def dump_way(self, way_id):
+        '''
+        Debugging function to show all node ids in a way 
+        
+        Parameters
+        ----------
+        way_id : int
+            The way id to dump to STDOUT
+        '''
         way_name = self.way_names_by_id[way_id]
         way_start = self.way_starts[way_id]
         way_end   = self.way_ends[way_id]
@@ -1128,6 +1599,20 @@ class osm_walker(object):
 
     @staticmethod
     def geojson_distance(filename, verbose=False):
+        '''
+        Calculate the total distance of all lines in a geojson file
+        
+        Useful for comparing the total length of routes, and measure the amount of agreement/disagreement
+        depending on the geojson file being examined
+        
+        Parameters
+        ----------
+        filename : str
+            The geojson file to measure
+            
+        verbose : boolean, optional
+            Specify whether debug message will be written to STDOUT
+        '''
         with open(filename) as json_file:
             gj = geojson.load(json_file)
 
@@ -1137,10 +1622,13 @@ class osm_walker(object):
             geom = feature['geometry']
             coordinates = geom['coordinates']
     
+            # Loop through all points
             for i in range(1, len(coordinates)):
+                # Compare point i to the previous point i-1
                 coord_a = coordinates[i-1]
                 coord_b = coordinates[i]
         
+                # Measure the distance between them, and add to the total
                 distance = geodesic((coord_a[1], coord_a[0]), (coord_b[1], coord_b[0])).m
                 if verbose:
                     print('{0:f}, {1:f} -> {2:f}, {3:f} = {3:f}'.format(coord_a[1], coord_a[0], coord_b[1], coord_b[0], distance))
