@@ -1639,6 +1639,32 @@ class osm_walker(object):
             
     
     def find_nearest_way_segment(self, point, qualitative_mode=True, verbose=False):
+        '''
+        For a given point (lat/lon) find the closest way in the OpenStreetMap data
+        
+        This is the first part of the process to align a detection location from the dash camera
+        to the actual layout of the road according to OpenStreetMap, which is useful to compare routes.
+        
+        Once we have quickly found the closest way (with the shapely library, which seems
+        to be faster than brute force) we can narrow down to the closest nodes on the way.
+        
+        Parameters
+        ----------
+        point : Point (lat, lon)
+            The point we are searching for
+            
+        qualitative_mode : boolean, optional
+            If this is set to True, we use a shapely library that gives us the closest distance
+            in "degrees" rather than metres.  This is a little tricky to convert into metres, because
+            it depends on where on Earth it is, the Earth is not a perfect sphere.  But it is
+            good enough to qualitatively distinguish the closest way.  If it is false, we will use
+            a more brute-force method that will actually give us the distance to the way in metres.
+
+        verbose : boolean, optional
+            Specify whether debug message will be written to STDOUT           
+        '''
+        
+        # Find the closest way (so far) and its distance from teh point
         closest_way      = None
         closest_distance = None
 
@@ -1651,9 +1677,9 @@ class osm_walker(object):
             
             if way_name not in ['Unnamed', 'FOOTWAY', 'PATH', 'PEDESTRIAN', 'RESIDENTIAL', 'ROUNDABOUT', 'SERVICE', 'TERTIARY_LINK', 'TRACK', 'TRUNK', 'TRUNK_LINK']:
                 if qualitative_mode:
-                    distance = point.distance(self.linked_linestrings[way_id])
+                    distance = point.distance(self.linked_linestrings[way_id]) # degrees
                 else:
-                    distance = self.find_distance_to_way(point, way_id, verbose=False)
+                    distance = self.find_distance_to_way(point, way_id, verbose=False) # metres
             
                 if verbose:
                     if distance is not None:
@@ -1671,13 +1697,33 @@ class osm_walker(object):
 
 
     def find_distance_to_way(self, point, way_id, verbose=False):
+        '''
+        Brute force search to find the closest distance between the point and the way
+        
+        Faster to use the other method
+        
+        Parameters
+        ----------
+        point : Point (lat, lon)
+            The point we are searching for
+            
+        way_id : int
+            The way we want to check the distance to
+            
+        verbose : boolean, optional
+            Specify whether debug message will be written to STDOUT 
+        '''
         closest_distance_for_way = None
         
         coord_list = self.linked_coord_list[way_id]
         way_name   = self.way_names_by_id[way_id]
         
+        # Check every node in the way
         for i in range(0, len(coord_list)):
+            # Find the coordinates of the node
             coords = coord_list[i]
+            
+            # Measure the distance from the point to those coordinates
             distance = geodesic((coords[0], coords[1]), (point.coords[0][0], point.coords[0][1])).m
             if verbose:
                 print('Coords {0:f}, {1:f}'.format(coords[0], coords[1]))
@@ -1691,6 +1737,17 @@ class osm_walker(object):
     
     
     def find_distance_to_node(self, node_id, point):
+        '''
+        Find the distance from a point to a node
+        
+        Parameters
+        ----------
+        node_id : int
+            node id to check
+            
+        point : Point (lat, lon)
+            point to check
+        '''
         node_coords = self.node_coords[node_id]
         point_coords = point.coords[0]
         
@@ -1700,6 +1757,20 @@ class osm_walker(object):
     
     
     def find_nearest_node(self, point, want_intersection=True, verbose=False):
+        '''
+        Find the nearest node to a point, from any way in the OpenStreetMap extract
+        
+        Parameters
+        ----------
+        point : Point (lat, lon)
+            The point to check
+            
+        want_intersectdion : boolean, optional
+            Specify whether the nearest node search must be limited to intersections
+            
+        verbose : boolean, optional
+            Specify whether debug message will be written to STDOUT 
+        '''
         # First, find the nearest way
         way_id_start = self.find_nearest_way_segment(point, verbose=False)
         
@@ -1738,7 +1809,8 @@ class osm_walker(object):
         if closest_node_id is not None:
             return way_id_start, closest_node_id, closest_distance, self.is_intersection_node(closest_node_id)
             
-        # Resort to finding a node that is not an intersection
+        # Resort to finding a node that is not an intersection, even if we really wanted one
+        # Better than nothing
         for node_id in self.linked_way_sections_all[way_id_start]:
             if not self.is_intersection_node(node_id):
                 if verbose:
@@ -1755,13 +1827,30 @@ class osm_walker(object):
 
 
     def find_nearest_node_pair(self, point, want_intersection=True, verbose=False):
+        '''
+        Find the nearest pair of adjacent nodes on a way for a point
+        
+        Useful for aligning dashcam images to a road segment between two intersections,
+        e.g. when creating a map of paved shoulders for research question 4
+        
+        Parameters
+        ----------
+        point : Point (lat, lon)
+            The point to check
+            
+        want_intersectdion : boolean, optional
+            Specify whether the nearest node search must be limited to intersections
+            
+        verbose : boolean, optional
+            Specify whether debug message will be written to STDOUT       
+        '''
         # First, find the nearest way
         way_id_start = self.find_nearest_way_segment(point, verbose=False)
         
         if way_id_start is None:
             return None
             
-        # Next, find the three nearest nodes from the list of intersection nodes on the way
+        # Next, find the THREE nearest nodes from the list of intersection nodes on the way
         closest_node_id1  = None
         closest_distance1 = None
         
@@ -1831,11 +1920,9 @@ class osm_walker(object):
         closest_node_id1_coords = self.node_coords[closest_node_id1]
         closest_node_id2_coords = self.node_coords[closest_node_id2]
         point_coords            = point.coords[0]
-        
-            
+               
         dist_p_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (point_coords[0], point_coords[1])).m
-        dist_1_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (closest_node_id1_coords[0], closest_node_id1_coords[1])).m
-        
+        dist_1_2 = geodesic((closest_node_id2_coords[0], closest_node_id2_coords[1]), (closest_node_id1_coords[0], closest_node_id1_coords[1])).m     
         
         if dist_p_2 >= dist_1_2:
             closest_node_idB = closest_node_id3
@@ -1859,13 +1946,36 @@ class osm_walker(object):
 
 
     def find_nearest_intersections_for_csv(self, filename_in, filename_out, intercept_bottom=640, intercept_top=486):
+        '''
+        For every point in a CSV file, find the point at which the paved shoulder lane boundaries intersect
+        
+        Parameters
+        ----------
+        filename_in : str
+            Path to the input CSV
+            
+        filename_out : str
+            Path to the output CSV
+        
+        intercept_bottom : int, optional
+            Arbirary height of the bottom horizontal line where we will check where the paved shoulder lane boundaries
+            intersect it
+            
+        intercept_top : int, optional
+            Arbitrary height of the top horizontal line wehre we will heck where the paved shoulder lane boundaries
+            intersect it
+        '''
+        
+        # Read the input file
         df = pd.read_csv(filename_in)
         
-        tqdm.pandas()
-        
+        # Initialize the output file        
         output_file = open(filename_out, 'w')
         output_file.write('filename,prefix,frame_num,lat,lon,altitude,heading,pixels_bottom,pixels_top,left_slope2,left_int2,left_slope1,left_int1,right_slope1,right_int1,way_id_start,node_id1,node_id2,distance1,distance2,lat1,lon1,lat2,lon2,intersection_x,intersection_y,x2_bottom,x1_bottom,x2_top,x1_top,slope_diff,way_name\n')
-                        
+         
+        # Process every record, one at a time, displaying a progress bar in Jupyter Notebook
+        tqdm.pandas()
+         
         df.progress_apply(lambda row: self.find_nearest_intersections_row(
             output_file,
             intercept_bottom,
@@ -1890,6 +2000,67 @@ class osm_walker(object):
         
 
     def find_nearest_intersections_row(self, output, intercept_bottom, intercept_top, filename, prefix, frame_num, lat, lon, altitude, heading, pixels_bottom, pixels_top, left_slope2, left_int2, left_slope1, left_int1, right_slope1, right_int1):
+        '''
+        For one point in a CSV file, find the point at which the paved shoulder lane boundaries intersect
+        
+        Parameters
+        ----------
+        output : str
+            Path to the output file where the results will be written as a single record
+            
+        intercept_bottom : int, optional
+            Arbirary height of the bottom horizontal line where we will check where the paved shoulder lane boundaries
+            intersect it
+            
+        intercept_top : int, optional
+            Arbitrary height of the top horizontal line wehre we will heck where the paved shoulder lane boundaries
+            intersect it
+            
+        filename : str
+            Field passed from the original file
+            
+        prefix : str
+            Field passed from the original file
+            
+        frame_num : int
+            Field passed from the original file
+            
+        lat : float
+            Field passed from the original file
+            
+        lon : float
+            Field passed from the original file
+        
+        altitude : float
+            Field passed from the original file
+            
+        heading : int
+            Field passed from the original file
+            
+        pixels_bottom : int
+            Field passed from the original file
+            
+        pixels_top : int
+            Field passed from the original file
+            
+        left_slope2 : float
+            Field passed from the original file
+            
+        left_int2 : float
+            Field passed from the original file
+            
+        left_slope1 : float
+            Field passed from the original file
+            
+        left_int1 : float
+            Field passed from the original file
+            
+        right_slope1 : float
+            Field passed from the original file
+            
+        right_int1 : float
+            Field passed from the original file
+        '''
         p = Point(lat, lon)
         
         way_id_start, closest_node_id1, closest_node_id2, closest_distance1, closest_distance2 = self.find_nearest_node_pair(p)
@@ -1980,6 +2151,35 @@ class osm_walker(object):
     # 9999 is well outside the bounds of the image size 1920x1080 so will be seen as an outlier
     @staticmethod
     def findIntersection(x1,y1,x2,y2,x3,y3,x4,y4):
+        '''
+        Given two lines (defined by two pairs of start/end points) find the point at which they intersect
+        
+        Parameters
+        ----------
+        x1 : int
+            X Coordinate of the first point
+            
+        y1 : int
+            Y Coordinate of the first point
+            
+        x2 : int
+            X Coordinate of the second point
+            
+        y2 : int
+            Y Coordinate of the second point
+            
+        x3 : int
+            X Coordinate of the third point
+            
+        y3 : int
+            Y Coordinate of the third point
+            
+        x4 : int
+            X Coordinate of the fourth point
+            
+        y4 : int
+            Y Coordinate of the fourth point
+        '''
         denominator = ( (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4) )
         
         if denominator != 0:
@@ -1991,7 +2191,22 @@ class osm_walker(object):
             
         return [px, py]
         
+        
     def summarise_lane_detections_csv(self, filename_in, filename_out):
+        '''
+        Given a CSV file where each point has been matched to the closest way and pair of intersections,
+        create additional columns aggregating attributes of the paved shoulder stats across all records
+        associated with that same way and pair of intersections.
+        
+        Parameters
+        ----------
+        
+        filename_in : str
+            Input CSV file
+            
+        filename_out : str
+            Output CSV flle with extra summary columns for each group        
+        '''
         # Read the original CSV
         df = pd.read_csv(filename_in)
         
@@ -2026,12 +2241,43 @@ class osm_walker(object):
 
         # Write the merged data to a new CSV
         combined_df.to_csv(filename_out, index=False)
+        
 
     def draw_lane_detections(self, csv_in, geojson_filename, prop_missing=0.2, intersection_y_std=50, intersection_x_std=50, width_top_mean=75):
+        '''
+        For every group of frames in the CSV (by closest way_id and two closest intersection node ids)
+        assess the group statistics and decide whether there is a paved shoudler on that route segment
+        at all.  If there is, draw it in a geojson file.
+        
+        Parameters
+        ----------
+        csv_in : str
+            Input CSV name
+            
+        geojson_filename : str
+            Output filename for geojson files
+            
+        prop_missing : float, optional
+            The maximum proportion of frames in the group that are allowed to have no paved shoulder
+            lane boundaries detected, before we assume there is no paved shoulder on the road segment.
+            
+        intersection_y_std : float, option
+            The maximum standard deviation of the y-coordinate of the intersection between paved shoulder
+            lane boundaries, before we assumne the lines are moving too much from frame to frame to be real.
+
+        intersection_x_std : float, option
+            The maximum standard deviation of the x-coordinate of the intersection between paved shoulder
+            lane boundaries, before we assumne the lines are moving too much from frame to frame to be real.
+           
+        width_top_mean : float, option
+            The minimum mean width of the image, in pixels, at the top horizontal reference line
+        '''
         # Read the CSV with summary information joined to individual detection information
         df = pd.read_csv(csv_in)
         
         # Apply detection thresholds for drawing a path
+        
+        # Suppress warnings about chained assignments
         pd.options.mode.chained_assignment = None
         
         df = df[df['prop_missing']       <= prop_missing]
@@ -2072,7 +2318,22 @@ class osm_walker(object):
             print('No features to write to: ' + geojson_filename)
             
             
-    def draw_lane(self, way_id_start, node_id1, node_id2):        
+    def draw_lane(self, way_id_start, node_id1, node_id2):  
+        '''
+        If we determined that a route segment (on a way, between a pair of intersections) has a
+        paved shoulder, then add it to the Features that will be written to a geojson file
+        
+        Parameters
+        ----------
+        way_id_start : int
+            The way being drawn
+        
+        node_id1 : int
+            The first node ID where the line will start
+            
+        node_id2 : int
+            The second node ID where the line will end (unless it continues in the next road segment, too)
+        '''
         # Get a list of all nodes in way_start_id, in order
         # Note: we might encounter either node_id1 or node_id2 first
         
@@ -2107,5 +2368,3 @@ class osm_walker(object):
             }
             
             self.lane_features.append(feature)
-
-            
