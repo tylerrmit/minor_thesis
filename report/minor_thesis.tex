@@ -83,7 +83,7 @@ supervision of {\supervisor}.
 
 First and foremost, I would like to thank Dr. Dhirendra Singh for inspiring this research and supervising me throughout the year.  I also greatly appreciate the input provided by Dr. Ron van Schyndel and the ``Research Methods'' class of Semester 1 2021, as I worked to develop a detailed research proposal. \\
 
-To Dr. Sophie Bittinger, Dr. Logan Bittinger, and Laura Pritchard, thank you for your encouragement, and your assistance with the editing process.
+To Dr. Sophie Bittinger, Dr. Logan Bittinger, Amy Pendergast, Laura Pritchard, thank you for your encouragement, and your assistance with the editing process.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,7 +98,7 @@ Many policy makers around the world wish to encourage cycling, for health, envir
 \chapter*{Abstract}
 %\endgroup
 
-On-road bicycle lanes improve safety for cyclists, and encourage participation in cycling for active transport and recreation.  With many local authorities responsible for portions of the infrastructure, official maps and datasets of bicycle lanes may be out-of-date and incomplete.  Even ``crowdsourced'' databases may have significant gaps, especially outside popular metropolitan areas.  This thesis presents a method to create a map of bicycle lanes in a survey area by taking sample street scene images from each road,  and then applying a deep learning model that has been trained to recognise bicycle lane symbols.  The list of coordinates where bicycle lane markings were detected is then correlated to geospatial data about the road network to record bicycle lane routes.  The method was applied to successfully build a map for a survey area in the outer suburbs of Melbourne.  It was able to identify bicycle lanes not previously recorded in the official State government dataset, OpenStreetMap, or the ``biking'' layer of Google Maps.
+On-road bicycle lanes improve safety for cyclists, and encourage participation in cycling for active transport and recreation.  With many local authorities responsible for portions of the infrastructure, official maps and datasets of bicycle lanes may be out-of-date and incomplete.  Even ``crowdsourced'' databases may have significant gaps, especially outside popular metropolitan areas.  This thesis presents a method to create a map of bicycle lanes in a survey area by taking sample street scene images from each road,  and then applying a deep learning model that has been trained to recognise bicycle lane symbols.  The list of coordinates where bicycle lane markings are detected is then correlated to geospatial data about the road network to record bicycle lane routes.  The method was applied to successfully build a map for a survey area in the outer suburbs of Melbourne.  It was able to identify bicycle lanes not previously recorded in the official State government dataset, OpenStreetMap, or the ``biking'' layer of Google Maps.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -237,7 +237,7 @@ The official Australian design standards for bicycle lanes specify that bicycle 
 \subsubsection{Identifying candidate intersections to sample}
 \label{s:sample_candidates}
 
-Two possible sources of information about ``known'' bicycle lane routes were considered for use in the sampling process:  The ``Principal Bicycle Dataset'', and XML extracts from the OpenStreetMap database.  These datasets are discussed in section \ref{s:datasets}, with further details of the structure of the OpenStreetMap data provided in Appendix \ref{a:osm_concepts}.  The ``Principal Bicycle Network'' dataset was chosen, as the incumbent official dataset for local policy makers.  Due to the age of the data, it was also less likely to suggest bicycle routes not yet captured in the Google Street View images.  On the other hand, using OpenStreetMap as a source of ``known'' bicycle lane routes generalises to other jurisdictions.  Tools were created to support both approaches, and their operation is described in appendix \ref{aj01} to \ref{aj03}.  Given a list of ``known'' bicycle lane routes from either of these sources, each route can be looked up in an OpenStreetMap database to identify its intersections.
+Two possible sources of information about ``known'' bicycle lane routes were considered for use in the sampling process:  The ``Principal Bicycle Dataset'', and XML extracts from the OpenStreetMap database.  These datasets are discussed in section \ref{s:datasets}, with further details of the structure of the OpenStreetMap data provided in Appendix \ref{a:osm_concepts}.  The ``Principal Bicycle Network'' dataset was chosen, as the incumbent official dataset for local policy makers.  Due to the age of the data, it was also less likely to suggest bicycle routes not yet captured in the Google Street View images.  Using OpenStreetMap as a source of ``known'' bicycle lane routes would generalise to other jurisdictions, therefore tools were created to support both approaches, and their operation is described in appendix \ref{aj01} to \ref{aj03}.  Given a list of ``known'' bicycle lane routes from either of these sources, each route can be looked up in an OpenStreetMap database to identify its intersections.
 
 OpenStreetMap data can be downloaded for an individual country via the ``GeoFabrik'' website \cite{geofabrik} and then sliced into a smaller area, if necessary, using the ``osmium'' command line tool \cite{osmium}.  For more background on concepts in the OpenStreetMap data, please refer to Appendix \ref{a:osm_concepts}.  Briefly, an OpenStreetMap XML extract file contains ``ways'', which represent lines on a map, such as road segments, and ``nodes'', which represent points with latitude/longitude coordinates that make up the ``ways'' and thereby describe the shape of each line on a map.  A list of candidate intersections along ``known'' bicycle lane routes can be extracted from OpenStreetMap XML data by looking for ``nodes'' that are common to two or more ``ways'' that are roads and have distinct names.
 
@@ -482,7 +482,7 @@ The new images for the enhanced ``training'' and ``test'' datasets were gathered
 \subsection{Mapping dash camera detections and comparing to other sources}
 \label{s:rq3d}
 
-Section \ref{s:rq2d} described the process that was used to produce geojson files to compare routes that were detected from Google Street View images to the routes that are recorded in OpenStreetMap.  When sampling images from Google Street View, each sample location can be traced back to a ``way'' and a ``node'' in OpenStreetMap, where the latitude and longitude came from.  Therefore any detections are already precisely aligned to points in the OpenStreetMap extract.
+Section \ref{s:rq2d} described the process that was used to produce geojson files to compare routes that were detected from Google Street View images to the routes that are recorded in OpenStreetMap.  When sampling images from Google Street View, each sample location can be traced back to a ``way'' and a ``node'' in OpenStreetMap, where the latitude and longitude details came from.  Therefore any detections are already precisely aligned to points in the OpenStreetMap extract.
 
 Images that were collected from dash camera footage take their coordinates from the dash camera's GPS receiver, and they are sampled from locations anywhere along the road.  To infer routes from bicycle lane markings detected in dash camera images, each detection location is mapped to the nearest intersection ``node'' in the OpenStreetMap data.  Once this has been done, the rest of the process is the same as for detections from Google Street View images.
 
@@ -783,6 +783,25 @@ A total of 1,113 locations were sampled from the survey area, at points within 2
 
 Figure \ref{fig:rq2c} is a screenshot from an interactive map that in the Jupyter Notebook described in appendix \ref{a11}, showing existing and planned bicycle routes in the survey area according to the ``Principal Bicycle Network'' dataset.  The blue bounding box shows the survey area.  The red lines show ``existing'' routes, and the blue lines show ``planned'' routes.  The ``Principal Bicycle Network'' dataset is out of date.  It correctly records that there is an existing route on the Nepean Highway, in red.  However, the long, straight ``planned'' route, Humphries Road, has existed for at least several years, and so has the route to the north-east of it, on Baden Powell Drive.  The planned route on Baden Powell Drive to the west of Humphries Road does not yet exist.
 
+In section \ref{results:rq1}, the models were trained for 2,000 training steps, beyond which further training did not appear to yield any improvements when the model was evaluated against the 51 image ``test'' dataset.  The Faster R-CNN model appeared to be the most promising.  However, when that model was applied to Google Street View images from the Mount Eliza survey area, the initial results were poor.  Precision was significantly lower than it had been in the initial evaluation, with many false positive detections for random objects such as bushes, or leaves on the road.  The models received further training on the original ``training'' dataset, up to 30,000 training steps, and the CenterNet model had the best performance, producing zero false positive detections, and a correct map, after 30,000 training steps.  It was therefore used to construct maps from the Google Street View images in the survey areas.  See figure \ref{fig:centernet} for training statistics.
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_gsv_false_positives.png}
+	\caption{False Positives}
+	\label{fig:rq2a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{fig_gsv_precision.png}
+	\caption{Precision}
+	\label{fig:rq2b}
+\end{subfigure}
+\caption{Extending model training steps to deal with false positives}
+\label{fig:centernet}
+\end{figure}
+
 \begin{figure}[h]
 \centering
 \begin{subfigure}{0.45\textwidth}
@@ -802,18 +821,17 @@ Figure \ref{fig:rq2c} is a screenshot from an interactive map that in the Jupyte
 
 Figure \ref{fig:rq2a} shows the individual points that were detected by the model from Google Street View images sampled near intersections in the survey area.  Figure \ref{fig:rq2b} shows the bicycle lane routes that were inferred from those detections, according to the method described in section \ref{s:rq2c}.  The routes in figure \ref{fig:rq2b} are colour-coded to highlight areas of agreement and disagreement between the detection model and OpenStreetMap.  Where both the detection model and OpenStreetMap agree that there is a bicycle lane, routes are coloured green.  They agree that there is a bicycle lane on Humphries Road.  Routes that were detected by the model but not recorded with a ``cycleway'' tag in OpenStreetMap are coloured blue.  The OpenStreetMap data is missing the cycleway on the Nepean Highway, and the fragment of the Baden Powell Drive cycleway that was detected near the boundary of the survey area.  Routes that are recorded in OpenStreetMap but were not detected would be coloured red, however there were no such routes in this survey.
 
-Table \ref{table_metres_rq2_me} shows a comparison between the routes detected for Mount Eliza from the Google Street View images to what is recorded in OpenStreetMap, in metres.  The two sources agreed upon 2,344 metres of bicycle lane routes, however the detection model found an additional 11,817 metres that were not recorded in OpenStreetMap.
-
+Table \ref{table_metres_rq2_me} shows a comparison between the routes detected for Mount Eliza from the Google Street View images to what is recorded in OpenStreetMap, in metres.  The two sources agreed upon 2,344 metres of bicycle lane routes.  The detection model found an additional 3,217 metres that were not recorded in OpenStreetMap, including parts of the divided Nepean Highway where both sides of the road were counted due to them being mapped in OpenStreetMap separately.  Distances are approximate due to the level of precision available when calculating distances between each point in the geojson files.
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|r||}
 \hline
 \textbf{Route source} & \textbf{Metres} \\
 \hline
-Detection Model & 11,817m \\
-OpenStreetMap & 2,334m \\
+Detection Model & 5,216m \\
+OpenStreetMap & 2,344m \\
 Both & 2,344m \\
-Detection model only & 9,387m \\
+Detection model only & 2,787m \\
 OpenStreetMap only & 0m \\
 \hline
 \end{tabular}
@@ -828,38 +846,39 @@ Based on an in-person survey of the area, and inspection of the Google Street Vi
 
 After surveying Mount Eliza with both the Google Street View approach in this section, and the dash camera approach in section \ref{results:rq3}, the Google Street View approach was revisited to test it on a survey area in Heidelberg, Victoria.  The purpose of this exercise was to assess how well the detection models generalised to a more heavily built-up area, closer to the city.  It included both residential and commercial areas.
 
-The initial results from applying the model used in \ref{results:rq1} and \ref{results:rq2a} -- which was trained exclusively on 205 Google Street View images from around Victoria -- were very poor.  There was an overwhelming volume of false positive detections.  Figure \ref{fig:heidelberg_bad} shows a comparison between the map generated from the detection model and OpenStreetMap.  The routes marked in blue represent the many streets where the detection model believed that it had detected a bicycle lane route that is not recorded in OpenStreetMap.  Most, if not all, of these routes are false positives.
-
-\begin{figure}[t!]
-\centering
-\includegraphics[width=0.45\textwidth]{h_map1_4.png}
-\caption{Comparison between detection model and OpenStreetMap for Heidelberg, using the ``Version 1'' model trained on GSV images only}
-\label{fig:heidelberg_bad}
-\end{figure}
-
-Reviewing the images for false positives, it was found that a large number of them were caused by white markings on the road, and other distractions that had been dealt with when creating a larger dataset to train the dash camera model used to survey Mount Eliza for research question 3, via the method described in section \ref{rq3c}.  Therefore, the more advanced model that had been trained to ignore many common white road markings via example dash camera images was used to re-process the Google Street View data for Heidelberg.  The updated results are shown in in figure \ref{fig:heidelberg_good}.
-
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.45\textwidth]{h_model_V2.png}
-\caption{Comparison between detection model and OpenStreetMap for Heidelberg, model trained on GSV images and dashcam images, with additional labels}
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{h_model_v2a.png}
+	\caption{Overview of survey area}
+	\label{fig:rq2a}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.45\textwidth}
+	\includegraphics[width=\textwidth]{h_model_v2b.png}
+	\caption{Magnified view}
+	\label{fig:rq2b}
+\end{subfigure}
+\caption{Map of bicycle lanes in Heidelberg based on Google Street View images}
 \label{fig:heidelberg_good}
 \end{figure}
 
-The green lines represent routes where both the detection model and OpenStreetMap agreed that a bicycle lane route is present.  The red lines represent routes that are recorded in OpenStreetMap but not detected.  Any red lines outside the bounding box describing the survey area can be ignored.  Google Street View images for the two ``red'' routes that run north-to-south along Cape Street and Stradbroke Street were examined, and it was found that there was no evidence of a bicycle lane in the images for either street.  The images may be out of date -- the Cape Street images were captured in May 2019, and the Stratbroke Street images were captured in March 2021 -- however the streets appeared too narrow to accommodate the addition of a bicycle lane without removing on-street parking.  These routes might be errors in the OpenStreetMap data.  See figure \ref{fig:heidelberg_osm_errors} for example images.
+The green lines represent routes where both the detection model and OpenStreetMap agreed that a bicycle lane route is present.  The red lines represent routes that are recorded in OpenStreetMap but not detected.  Any red lines outside the bounding box describing the survey area can be ignored.  The Google Street View images for the red lines within the survey area were examined manually, to assess whether the model had produced sensible results based on the input.  Zooming into the red diagonal line on Studley Road near the Heidelberg train station, it can be seen that the model did correctly predict that there was a bicycle lane, but it only marked it on one side of the road, where it is tagged separately on both sides of a divided road in OpenStreetMap.  The remainder of the red lines are routes where there is no bicycle lane visible in the Google Street View images, and the model has produced a sensible result.  See figure \ref{fig:heidelberg_osm_errors} for example images from Cape Street and Stradbroke Street.  It is possible that this is caused by out-of-date Google Street View images, however the images for Stradbroke Street were only six months old, and the streets did not seem wide enough to easily accommodate the addition of a bicycle lane.  These routes might be errors in the OpenStreetMap data.  An on-site survey would be required to confirm this.
+
+The blue lines near the Austin Hospital and Heidelberg Station are false positives.  They are caused by the road being close enough to see a bicycle lane marking on a nearby road.
 
 \begin{figure}[h]
 \centering
 \begin{subfigure}{0.45\textwidth}
 	\includegraphics[width=\textwidth]{Heidelberg/Cape_St_South.jpg}
 	\caption{Cape Street, Heidelberg, May 2019}
-	\label{fig:osm_err1}
+	\label{heidelberg_a}
 \end{subfigure}
 \hfill
 \begin{subfigure}{0.45\textwidth}
 	\includegraphics[width=\textwidth]{Heidelberg/Stradbroke_St_South_202103.jpg}
 	\caption{Stradbroke Street, Heidelberg, March 2021}
-	\label{fig:osm_err2}
+	\label{fig:heidelberg_b}
 \end{subfigure}
 \caption{Example Bicycle lane routes that are tagged in Heidelberg but not apparent in the Google Street View images}
 \label{fig:heidelberg_osm_errors}
@@ -877,18 +896,18 @@ A comparison between the improved detection model results and OpenStreetMap in t
 \hline
 \textbf{Route source} & \textbf{Metres} \\
 \hline
-Detection Model & 4,264m \\
+Detection Model & 4,563m \\
 OpenStreetMap & 5,317m \\
-Both & 3,013m \\
-Detection model only & 1,140m \\
-OpenStreetMap only & 1,917m \\
+Both & 2,094m \\
+Detection model only & 469m \\
+OpenStreetMap only & 2,536m \\
 \hline
 \end{tabular}
 \caption{Comparison of routes detected in Heidelberg to OpenStreetMap, GSV images}
 \label{table_metres_rq2_h}
 \end{table}
 
-The model was only able to identify 57\% of the bicycle lane routes recorded in OpenStreetMap, by distance, and 27\% of the routes it identified were false positives.  The model was not able to achieve the desired level of performance in this more heavily built-up suburb.  To address  these issues, more training and validation data from this type of environment would be required, and perhaps using dash camera footage would also help by providing a greater number of images where bicycle lane markings can potentially be detected.
+The model was able to identify all bicycle lane routes that were recorded in OpenStreetMap and visible in the Google Street View images.  It produced 469 metres worth of false positives, due to bicycle lane markings on one road being visible from multiple points on a nearby road.  And it only drew a bicycle lane on one side of a divided road, where OpenStreetMap had recorded bicycle lanes on both sides, separately.  An approach using dash camera footage could help to remove these issues, by providing footage for both sides of each road, with the camera reliably facing down the the road at each point, and masks to avoid detection of bicycle lane markings on nearby roads.
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~
 \section{RQ3: Building a map of bicycle lane routes from dash camera footage captured in a survey area}
@@ -1059,7 +1078,7 @@ The model did not present any false positives, and it appeared to find most road
 
 \subsection{Use of Google Street View images}
 
-The use of Google Street View images to map bicycle lane routes in Mount Eliza was effective, and added value, finding routes that had not already been recorded in either the official ``Principal Bicycle Network'' dataset or the crowdsourced OpenStreetMap database.  Repeating the exercise in the more heavily built-up suburb of Heidelberg was less effective:  There were some false positives, and every real route that was identified was already included in the OpenStreetMap database.  More Google Street View images would need to be collected from areas such as this to improve the reliability of the results.
+The use of Google Street View images to map bicycle lane routes in Mount Eliza was effective, and added value, finding routes that had not already been recorded in either the official ``Principal Bicycle Network'' dataset or the crowdsourced OpenStreetMap database.  Repeating the exercise in the more heavily built-up suburb of Heidelberg was less effective:  There were some false positives, and every real route that was identified was already included in the OpenStreetMap database.
 
 The main limitations of the Google Street View approach are the cost of images and gaps in coverage they can provide.
 
@@ -1067,9 +1086,11 @@ The Google Street View API appears to be able to provide a distinct snapshot eve
 
 One significant challenge is the recency of the available Google Street View images.  For example, the latest available Google Street View images for the Mount Eliza survey area are dated October 2019.  If any new bicycle lanes had been constructed in the past two years, the model would be unable to detect them.  The Google Street View approach can only bring a dataset of bicycle lane routes up to date as far as Google's last visit to the area.
 
-The Google Street View camera vehicle typically only provides a view from one lane, on one side of the road.  Bicycle lane markings on the other side of the road may be difficult to spot, especially for a divided road with foliage or other barriers dividing the traffic.  This is especially important if you want the bicycle lane route map to distinguish which side of the road a bicycle lane is on, if not both.  It may be very difficult or impossible to detect a bicycle lane in a service road running in the opposite direction to the lane from which the Google Street View snapshot was taken.  Hopefully these challenges are sometimes mitigated by taking samples near intersections from multiple approaches, where some of the bicycle lane markings might be clear.
+The Google Street View camera vehicle typically only provides a view from one lane, on one side of the road.  Bicycle lane markings on the other side of the road may be difficult to spot, especially for a divided road with foliage or other barriers dividing the traffic.  This is especially important if you want the bicycle lane route map to distinguish which side of the road a bicycle lane is on, if not both.  It may be impossible to detect a bicycle lane in a service road running in the opposite direction to the lane from which the Google Street View snapshot was taken.  Hopefully these challenges are sometimes mitigated by taking samples near intersections from multiple approaches, where some of the bicycle lane markings might be clear.
 
 The model was able to detect bicycle lane markings even when they were moderately far into the distance, despite the 640x640 resolution limit.  Sometimes, the bicycle lane marking was ``smeared'' by artefacts in the Google Street View image, but with enough training examples, the model was able to detect these correctly.
+
+The approach of using a 360 degree view at each intersection to infer routes was vulnerable to false positives where bicycle lane markings were visible from a separate road, nearby.  Using front-facing footage from a dash camera, where the camera is always aligned to the direction of the road, masks could be applied to resolve this issue.
 
 The survey area of Mount Eliza is in an outer metropolitan area, and the COVID-19 lockdown restrictions have triggered political debate about whether it should even be considered ``metropolitan'' at all.  Most residential roads in the area do not have pedestrian footpaths.  When the model is applied to higher-density suburbs, such as Heidelberg, it is likely to need more images in the ``training'' and ``test'' datasets to cover the additional distractions that might appear on the side of the road.  Detection masks might also assist.  With more traffic, it might be much more difficult to detect a bicycle lane marking on the other side of a road or intersection, and there might therefore be a much higher reliance on detecting markings immediately in front of and to the left of the camera vehicle, where it is less likely that another vehicle could be blocking the view.
 
