@@ -11,7 +11,7 @@
 % Import this last
 \usepackage[pagebackref]{hyperref}
 
-\graphicspath{ {./Figs/} }
+\graphicspath{{./Figs/}}
 \setcounter{secnumdepth}{3}
 
 % Place the correct values here
@@ -851,13 +851,13 @@ After surveying Mount Eliza with the Google Street View approach, the exercise w
 \begin{subfigure}{0.45\textwidth}
 	\includegraphics[width=\textwidth]{h_model_v2a.png}
 	\caption{Overview of survey area}
-	\label{fig:rq2a}
+	\label{fig:rq2a-h}
 \end{subfigure}
 \hfill
 \begin{subfigure}{0.45\textwidth}
 	\includegraphics[width=\textwidth]{h_model_v2b.png}
 	\caption{Magnified view}
-	\label{fig:rq2b}
+	\label{fig:rq2b-h}
 \end{subfigure}
 \caption{Map of bicycle lanes in Heidelberg based on Google Street View images}
 \label{fig:heidelberg_good}
@@ -1105,7 +1105,7 @@ The challenge with the dash camera approach is with logistics.  With Google Stre
 
 To scale the dash camera approach across multiple cameras, or to reproduce the research, it should be noted that the optical characteristics, resolution, and frame rate of each camera may differ, and placement of the camera in different positions, angles, and vehicles may materially affect the perspective of the images.  These factors might result in the need to gather additional training and test images to ensure that the solution generalises well across cameras.  Any model that depends on a model to correct for lens distortion should go through its own calibration process, as per section \ref{s:rq4a}.
 
-The method that was used to quickly ``bootstrap'' a set of set of dash camera images for training and validation based on the Google Street View-trained model worked well in this instance.  But the process of randomly splitting those images into ``training'' and ``test'' datasets would not have ensured the absolute independence of the ``test'' images.  None of the ``test'' images were included in the ``training'' dataset, however some of the ``training'' images may have been very similar due to them being taken from a nearby location.  If the model had failed to generalise well despite good performance in its evaluation, this may have needed more attention.
+The method that was used to quickly ``bootstrap'' a set of dash camera images for training and validation based on the Google Street View-trained model worked well in this instance.  But the process of randomly splitting those images into ``training'' and ``test'' datasets would not have ensured the absolute independence of the ``test'' images.  None of the ``test'' images were included in the ``training'' dataset, however some of the ``training'' images may have been very similar due to them being taken from a nearby location.  If the model had failed to generalise well despite good performance in its evaluation, this may have needed more attention.
 
 It is likely that more ``training'' and ``test'' images would be required for inner metropolitan areas, but it was not possible to test this hypothesis.
 
@@ -1186,7 +1186,7 @@ All Jupyter Notebooks listed below follow a convention that immediately after a 
 \item{Review and update the ``Config'' cell}
 \item{Run all cells in the notebook, or run the cells one at a time if specifically directed by the notebook}	
 \end{itemize}
-Whereever an operation is expected to take a long time, progress bars are provided.
+Wherever an operation is expected to take a long time, progress bars are provided.
 
 The notebooks are designed with the assumption that the ``jupyter notebooks'' command will be run from the ``minor\_thesis'' top-level directory that was checked out from GitHub as the current working directory.  They expect to find a ``data\_sources'' subdirectory for a lot of the data and configuration files, and a ``jupyter'' subdirectory where the notebooks live.
 
@@ -1425,7 +1425,7 @@ This notebook 15 is equivalent to notebook 08, but for the new dataset that incl
 
 This notebook 16 is equivalent to notebook 09, instead of sampling Google Street View images near intersections, we are processing every image we extracted from the video footage in notebook 12.
 
-Based on the findings from cycling the ``training area'' footage through notebook 15 -> 13 -> 14 in a loop, some enhancements were made to the model to reduce false positives.  See the notebook and ``Methods'' section of this document for further details.
+Based on the findings from cycling the ``training area'' footage through notebook 15 $\rightarrow$ 13 $\rightarrow$ 14 in a loop, some enhancements were made to the model to reduce false positives.  See the notebook and ``Methods'' section of this document for further details.
 
 In the ``Config'' section, you can specify the folder/location being surveyed, and the minimum confidence score required to flag a detection.  Specify the name of the model or frozen model you wish to use, and the dataset version prefix to ensure the correct label map file is used.
 
